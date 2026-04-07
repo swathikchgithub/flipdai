@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --app --no-src-dir --no-import-alias --yes)",
+      "Read(//usr/local/lib/node_modules/npm/bin/**)",
+      "Read(//Users/swathi.chadalavada/.nvm/versions/**)",
+      "Read(//opt/homebrew/bin/**)",
+      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/opt/node/bin\")",
+      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")"
+    ]
+  }
+}
