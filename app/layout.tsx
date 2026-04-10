@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FlashAI — AI Flash Card Generator",
-  description: "AI-powered flash cards with voice support for any topic",
+  title: "FlipDAI — AI Flash Card Generator",
+  description: "AI-powered flash cards with 8 models, voice support, and keyboard shortcuts for any topic",
 };
 
 export default function RootLayout({

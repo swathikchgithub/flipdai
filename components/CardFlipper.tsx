@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { FlashCard } from "@/lib/flashcard-types";
-import VoiceControls from "./VoiceControls";
+import { speakText, stopSpeaking } from "@/lib/voice-utils";
 
 interface CardFlipperProps {
   cards: FlashCard[];
@@ -17,191 +17,313 @@ interface CardFlipperProps {
   onTranscript?: (transcript: string, card: FlashCard) => void;
 }
 
-const difficultyConfig: Record<number, { color: string; bg: string; label: string; border: string }> = {
-  1: { color: "text-[var(--green)]", bg: "bg-[var(--green)]/10", label: "Easy", border: "border-l-[var(--green)]" },
-  2: { color: "text-[var(--yellow)]", bg: "bg-[var(--yellow)]/10", label: "Medium", border: "border-l-[var(--yellow)]" },
-  3: { color: "text-[var(--red)]", bg: "bg-[var(--red)]/10", label: "Hard", border: "border-l-[var(--red)]" },
-};
+interface Evaluation {
+  correct: boolean;
+  score: number;
+  feedback: string;
+}
 
 export default function CardFlipper({
-  cards,
-  onKnown,
-  onReview,
-  onSkip,
-  onComplete,
-  currentIndex,
-  onNext,
-  onPrev,
+  cards, onKnown, onReview, onSkip, onComplete,
+  currentIndex, onNext, onPrev,
   autoSpeak = false,
-  onTranscript,
 }: CardFlipperProps) {
+  const card = cards[currentIndex];
   const [flipped, setFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [typedAnswer, setTypedAnswer] = useState("");
+  const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const card = cards[currentIndex];
-  const diff = difficultyConfig[card?.difficulty] ?? difficultyConfig[2];
-
+  // Reset on card change
   useEffect(() => {
     setFlipped(false);
     setShowHint(false);
-  }, [currentIndex]);
+    setTypedAnswer("");
+    setEvaluation(null);
+    setEvaluating(false);
+    stopSpeaking();
+    if (autoSpeak && card) {
+      const t = setTimeout(() => speakText(card.front, 1), 300);
+      return () => clearTimeout(t);
+    }
+  }, [currentIndex, autoSpeak]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
+  const goNext = useCallback(() => {
+    if (currentIndex < cards.length - 1) onNext(); else onComplete();
+  }, [currentIndex, cards.length, onNext, onComplete]);
+
+  const checkAnswer = useCallback(async () => {
+    setFlipped(true);
+    if (!typedAnswer.trim()) return;
+    setEvaluating(true);
+    setEvaluation(null);
+    try {
+      const res = await fetch("/api/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ front: card.front, back: card.back, studentAnswer: typedAnswer }),
+      });
+      const result = await res.json();
+      setEvaluation(result);
+    } catch {
+      // silently ignore — user can still self-rate
+    } finally {
+      setEvaluating(false);
+    }
+  }, [typedAnswer, card]);
+
+  // Keyboard shortcuts — skip Space flip when textarea is focused
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
       if (!card) return;
+      const inTextarea = document.activeElement === textareaRef.current;
       switch (e.key) {
         case " ":
-          e.preventDefault();
-          setFlipped((f) => !f);
+          if (!inTextarea) { e.preventDefault(); setFlipped(f => !f); }
           break;
-        case "ArrowRight":
-          e.preventDefault();
-          if (currentIndex < cards.length - 1) onNext();
-          else onComplete();
+        case "Enter":
+          if (inTextarea && (e.metaKey || e.ctrlKey)) { e.preventDefault(); checkAnswer(); }
           break;
-        case "ArrowLeft":
-          e.preventDefault();
-          if (currentIndex > 0) onPrev();
-          break;
-        case "1":
-          onKnown(card.id);
-          if (currentIndex < cards.length - 1) onNext();
-          else onComplete();
-          break;
-        case "2":
-          onReview(card.id);
-          if (currentIndex < cards.length - 1) onNext();
-          else onComplete();
-          break;
+        case "ArrowRight": if (!inTextarea) { e.preventDefault(); goNext(); } break;
+        case "ArrowLeft":  if (!inTextarea) { e.preventDefault(); if (currentIndex > 0) onPrev(); } break;
+        case "1": if (!inTextarea) { onKnown(card.id); goNext(); } break;
+        case "2": if (!inTextarea) { onSkip(card.id); goNext(); } break;
+        case "3": if (!inTextarea) { onReview(card.id); goNext(); } break;
       }
-    },
-    [card, currentIndex, cards.length, onNext, onPrev, onKnown, onReview, onComplete]
-  );
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [card, currentIndex, goNext, onPrev, onKnown, onReview, onSkip, checkAnswer]);
 
   if (!card) return null;
 
   return (
-    <div className="flex flex-col items-center gap-5 w-full">
-      {/* Card */}
-      <div
-        className="card-flip-container w-full cursor-pointer"
-        style={{ height: "340px" }}
-        onClick={() => setFlipped((f) => !f)}
-      >
+    <div className="w-full max-w-xl mx-auto flex flex-col gap-5">
+
+      {/* ── Flash card ── */}
+      <div className="card-flip-container w-full">
         <div className={`card-flip-inner ${flipped ? "flipped" : ""}`}>
-          {/* Front */}
-          <div className={`card-face bg-[var(--bg-card)] border border-[var(--border)] border-l-4 ${diff.border} shadow-2xl`}>
-            <div className="text-center space-y-4 w-full">
-              <div className="flex items-center justify-between w-full">
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full ${diff.bg} ${diff.color}`}>
-                  {diff.label}
-                </span>
-                <span className="text-xs text-[var(--text-secondary)] bg-[var(--bg-secondary)] px-3 py-1 rounded-full">
-                  {card.subcategory}
-                </span>
-              </div>
 
-              <div className="text-xl font-semibold leading-relaxed text-[var(--text-primary)] px-2">
-                {card.front}
-              </div>
+          {/* ── FRONT ── */}
+          <div
+            className="card-face flex flex-col items-center justify-start text-center"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "0.5px solid rgba(255,255,255,0.14)",
+              borderRadius: "1rem",
+              padding: "1.75rem 1.5rem",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+              pointerEvents: flipped ? "none" : "auto",
+              cursor: "default",
+            }}
+          >
+            <div className="text-[10px] font-bold uppercase tracking-[0.1em] mb-4" style={{ color: "#7a8499" }}>
+              Question
+            </div>
+            <div
+              className="font-medium leading-relaxed w-full"
+              style={{ fontSize: "clamp(16px, 2.8vw, 21px)", color: "#e8eaf0" }}
+            >
+              {card.front}
+            </div>
 
-              {card.hint && (
+            {card.hint && (
+              <div className="mt-4 w-full text-left" onClick={e => e.stopPropagation()}>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowHint((h) => !h); }}
-                  className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] transition-colors flex items-center gap-1 mx-auto"
+                  onClick={() => setShowHint(h => !h)}
+                  className="text-xs transition-colors"
+                  style={{ color: showHint ? "#7c6fff" : "#404058" }}
                 >
                   💡 {showHint ? "Hide hint" : "Show hint"}
                 </button>
-              )}
-              {showHint && card.hint && (
-                <div className="text-sm text-[var(--text-secondary)] bg-[var(--bg-secondary)] rounded-xl p-3 fade-in border border-[var(--border)] text-left">
-                  {card.hint}
-                </div>
-              )}
+                {showHint && (
+                  <div
+                    className="mt-2 text-sm rounded-xl px-4 py-3 text-left"
+                    style={{ background: "rgba(124,111,255,0.07)", border: "1px solid rgba(124,111,255,0.18)", color: "#9090b8" }}
+                  >
+                    {card.hint}
+                  </div>
+                )}
+              </div>
+            )}
 
-              <p className="text-xs text-[var(--text-secondary)]/60 flex items-center justify-center gap-2">
-                <span className="px-2 py-0.5 rounded border border-[var(--border)] text-[10px]">Space</span>
-                to flip
+            {/* Answer input */}
+            <div className="mt-5 w-full" onClick={e => e.stopPropagation()}>
+              <textarea
+                ref={textareaRef}
+                value={typedAnswer}
+                onChange={e => setTypedAnswer(e.target.value)}
+                placeholder="Type your answer here… (optional)"
+                rows={3}
+                className="w-full rounded-xl text-sm resize-none focus:outline-none"
+                style={{
+                  background: "rgba(255,255,255,0.05)",
+                  border: "0.5px solid rgba(255,255,255,0.12)",
+                  color: "#c8cad8",
+                  padding: "10px 14px",
+                  lineHeight: 1.6,
+                  caretColor: "#7c6fff",
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = "rgba(124,111,255,0.4)")}
+                onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
+              />
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={checkAnswer}
+                  className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
+                  style={{
+                    background: "linear-gradient(135deg, #7c6fff, #38bdf8)",
+                    color: "#fff",
+                  }}
+                >
+                  {typedAnswer.trim() ? "Check Answer →" : "Reveal Answer →"}
+                </button>
+              </div>
+              <p className="mt-1.5 text-[10px] text-center" style={{ color: "#6a7285" }}>
+                {typedAnswer.trim() ? "⌘↵ to check · click card to just reveal" : "👆 click the card to reveal without typing"}
               </p>
             </div>
           </div>
 
-          {/* Back */}
-          <div className={`card-back card-face border border-l-4 ${diff.border} shadow-2xl`}
-            style={{ background: "linear-gradient(135deg, rgba(124,111,255,0.08) 0%, rgba(56,189,248,0.05) 100%)", borderColor: "var(--border)" }}
+          {/* ── BACK ── */}
+          <div
+            className="card-back card-face flex flex-col items-center justify-start text-center"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "0.5px solid rgba(255,255,255,0.14)",
+              borderRadius: "1rem",
+              padding: "1.75rem 1.5rem",
+              boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+              pointerEvents: flipped ? "auto" : "none",
+            }}
+            onClick={() => setFlipped(false)}
           >
-            <div className="text-center space-y-4 w-full">
-              <div className="text-xs font-bold gradient-text uppercase tracking-widest">
-                Answer
+            <div className="text-[10px] font-bold uppercase tracking-[0.1em] mb-4" style={{ color: "#2cc48a" }}>
+              Answer
+            </div>
+            <div
+              className="font-medium leading-relaxed w-full"
+              style={{ fontSize: "clamp(14px, 2.4vw, 18px)", color: "#d8dce8", lineHeight: 1.6 }}
+            >
+              {card.back}
+            </div>
+
+            {/* AI evaluation result */}
+            {(evaluating || evaluation) && (
+              <div
+                className="w-full mt-4 rounded-xl px-4 py-3 text-left"
+                onClick={e => e.stopPropagation()}
+                style={{
+                  background: evaluating ? "rgba(255,255,255,0.03)"
+                    : evaluation?.correct ? "rgba(44,196,138,0.08)" : "rgba(248,113,113,0.08)",
+                  border: evaluating ? "0.5px solid rgba(255,255,255,0.08)"
+                    : evaluation?.correct ? "0.5px solid rgba(44,196,138,0.3)" : "0.5px solid rgba(248,113,113,0.3)",
+                }}
+              >
+                {evaluating ? (
+                  <p className="text-xs" style={{ color: "#606080" }}>Evaluating your answer…</p>
+                ) : (
+                  <div className="flex items-start gap-2 text-sm">
+                    <span className="flex-shrink-0">{evaluation?.correct ? "✅" : "❌"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p style={{ color: "#c8cad8" }}>{evaluation?.feedback}</p>
+                      {typedAnswer && (
+                        <p className="mt-1 text-xs italic" style={{ color: "#555568" }}>
+                          Your answer: "{typedAnswer}"
+                        </p>
+                      )}
+                    </div>
+                    <span className="flex-shrink-0 font-bold text-xs" style={{ color: "#7c6fff" }}>
+                      {evaluation?.score}/100
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="text-lg leading-relaxed text-[var(--text-primary)] font-medium">
-                {card.back}
-              </div>
+            )}
+
+            {/* Rating buttons */}
+            <div
+              className="flex gap-2 mt-5 flex-wrap justify-center"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => { onReview(card.id); goNext(); }}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-85 active:scale-95"
+                style={{ background: "rgba(216,99,58,0.15)", color: "#e89070" }}
+                data-testid="rating-still"
+              >
+                😕 Still learning
+              </button>
+              <button
+                onClick={() => { onSkip(card.id); goNext(); }}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-85 active:scale-95"
+                style={{ background: "rgba(232,162,71,0.15)", color: "#e8b870" }}
+                data-testid="rating-almost"
+              >
+                🤔 Almost got it
+              </button>
+              <button
+                onClick={() => { onKnown(card.id); goNext(); }}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all hover:opacity-85 active:scale-95"
+                style={{ background: "rgba(44,196,138,0.15)", color: "#4dd4a0" }}
+                data-testid="rating-got"
+              >
+                ✓ Got it!
+              </button>
             </div>
           </div>
+
         </div>
       </div>
 
-      {/* Voice Controls */}
-      <div className="w-full">
-        <VoiceControls
-          text={flipped ? card.back : card.front}
-          autoSpeak={autoSpeak && !flipped}
-          onTranscript={onTranscript ? (t) => onTranscript(t, card) : undefined}
-          showMic={!!onTranscript}
-        />
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex gap-2.5 w-full flex-wrap justify-center">
+      {/* ── Navigation ── */}
+      <div className="flex items-center justify-center gap-3">
         <button
-          onClick={() => { if (currentIndex > 0) onPrev(); }}
           disabled={currentIndex === 0}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border)] disabled:opacity-25 transition-all text-sm font-medium"
+          onClick={() => { if (currentIndex > 0) onPrev(); }}
+          className="px-5 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          style={{ border: "0.5px solid rgba(255,255,255,0.1)", color: "#888898", background: "transparent" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          data-testid="prev-btn"
         >
           ← Prev
         </button>
 
         <button
-          onClick={() => { onReview(card.id); if (currentIndex < cards.length - 1) onNext(); else onComplete(); }}
-          className="px-5 py-2.5 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all font-semibold text-sm border border-red-500/20 hover:border-red-500/40"
+          onClick={() => setFlipped(f => !f)}
+          className="px-3 py-2 rounded-xl text-base transition-all"
+          style={{ border: "0.5px solid rgba(255,255,255,0.1)", color: "#666678", background: "transparent" }}
+          title="Flip card (Space)"
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
         >
-          ❌ Review <span className="opacity-50 text-xs ml-1">(2)</span>
+          🔀
         </button>
 
         <button
-          onClick={() => { onSkip(card.id); if (currentIndex < cards.length - 1) onNext(); else onComplete(); }}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border)] transition-all text-sm font-medium"
-        >
-          Skip
-        </button>
-
-        <button
-          onClick={() => { onKnown(card.id); if (currentIndex < cards.length - 1) onNext(); else onComplete(); }}
-          className="px-5 py-2.5 rounded-xl bg-[var(--green)]/10 text-[var(--green)] hover:bg-[var(--green)]/20 transition-all font-semibold text-sm border border-[var(--green)]/20 hover:border-[var(--green)]/40"
-        >
-          ✅ Know It <span className="opacity-50 text-xs ml-1">(1)</span>
-        </button>
-
-        <button
-          onClick={() => { if (currentIndex < cards.length - 1) onNext(); else onComplete(); }}
-          className="px-4 py-2.5 rounded-xl bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border)] transition-all text-sm font-medium"
+          onClick={goNext}
+          className="px-5 py-2 rounded-xl text-sm font-medium transition-all"
+          style={{ border: "0.5px solid rgba(255,255,255,0.1)", color: "#888898", background: "transparent" }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+          data-testid="next-btn"
         >
           Next →
         </button>
       </div>
 
-      {/* Keyboard shortcuts */}
-      <div className="text-[11px] text-[var(--text-secondary)]/50 flex gap-4 flex-wrap justify-center">
-        <span>Space = flip</span>
-        <span>· ← → = navigate</span>
-        <span>· 1 = know</span>
-        <span>· 2 = review</span>
+      {/* ── Keyboard hints ── */}
+      <div className="hidden sm:block text-center" style={{ fontSize: 11, color: "#333348" }}>
+        <span className="px-1.5 py-0.5 rounded mr-0.5" style={{ border: "0.5px solid rgba(255,255,255,0.1)", fontSize: 10, color: "#555568" }}>Space</span> flip
+        &nbsp;·&nbsp;
+        <span className="px-1.5 py-0.5 rounded mr-0.5" style={{ border: "0.5px solid rgba(255,255,255,0.1)", fontSize: 10, color: "#555568" }}>→</span> next
+        &nbsp;·&nbsp;
+        <span className="px-1.5 py-0.5 rounded mr-0.5" style={{ border: "0.5px solid rgba(255,255,255,0.1)", fontSize: 10, color: "#555568" }}>←</span> prev
+        &nbsp;·&nbsp;
+        <span className="px-1.5 py-0.5 rounded mr-0.5" style={{ border: "0.5px solid rgba(255,255,255,0.1)", fontSize: 10, color: "#555568" }}>⌘↵</span> check
       </div>
     </div>
   );

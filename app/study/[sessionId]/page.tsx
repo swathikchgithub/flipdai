@@ -11,6 +11,7 @@ import ProgressBar from "@/components/ProgressBar";
 import StudyStats from "@/components/StudyStats";
 import QuizMode from "@/components/QuizMode";
 import Link from "next/link";
+import { FLIPDAI_MODELS } from "@/config/flipdai-constants";
 
 interface PageProps {
   params: Promise<{ sessionId: string }>;
@@ -40,6 +41,7 @@ export default function StudyPage({ params }: PageProps) {
   const topicId = searchParams.get("topic") || "";
   const subcategory = searchParams.get("sub") || "";
   const count = parseInt(searchParams.get("count") || "10");
+  const model = searchParams.get("model") || "claude-sonnet-4-5";
 
   const [sessionId, setSessionId] = useState<string>("");
   const [phase, setPhase] = useState<Phase>("generating");
@@ -56,6 +58,7 @@ export default function StudyPage({ params }: PageProps) {
   const [evaluating, setEvaluating] = useState(false);
 
   const topic = TOPICS.find((t) => t.id === topicId);
+  const modelInfo = FLIPDAI_MODELS.find((m) => m.value === model);
 
   useEffect(() => {
     params.then(({ sessionId: sid }) => setSessionId(sid));
@@ -74,7 +77,7 @@ export default function StudyPage({ params }: PageProps) {
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topicId, subcategory, count }),
+          body: JSON.stringify({ topicId, subcategory, count, model }),
         });
 
         if (!res.ok) throw new Error("Generation failed");
@@ -179,123 +182,140 @@ export default function StudyPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] bg-grid">
-      {/* Header */}
-      <header className="border-b border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-xl sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-2 text-sm font-medium transition-colors">
-            ← Home
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{topic.icon}</span>
-            <span className="font-bold text-[var(--text-primary)]">{topic.label}</span>
-            <span className="text-[var(--accent)] text-sm font-medium">· {subcategory}</span>
-          </div>
-          <button
-            onClick={() => setAutoSpeak((a) => !a)}
-            className={`px-3 py-1.5 rounded-xl text-sm font-medium transition-all ${autoSpeak ? "bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]"}`}
-            title="Auto-read cards"
+    <div className="min-h-screen" style={{ background: "#0e0f13" }}>
+
+      {/* ── Header ── */}
+      <header style={{
+        position: "sticky", top: 0, zIndex: 100,
+        borderBottom: "0.5px solid rgba(255,255,255,0.06)",
+        background: "rgba(14,15,19,0.92)",
+        backdropFilter: "blur(12px)",
+      }}>
+        <div style={{
+          maxWidth: 760, margin: "0 auto", padding: "0 24px",
+          height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+        }}>
+          <Link
+            href="/"
+            style={{
+              fontSize: 14, color: "#8892a4",
+              padding: "6px 12px",
+              border: "0.5px solid rgba(255,255,255,0.18)",
+              borderRadius: 8, flexShrink: 0, textDecoration: "none",
+              transition: "color 0.15s",
+            }}
           >
-            🔊
-          </button>
+            ← Back
+          </Link>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>{topic.icon}</span>
+            <span style={{ fontWeight: 500, fontSize: 15, color: "#e0e2ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {topic.label}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <button
+              onClick={() => setAutoSpeak((a) => !a)}
+              style={autoSpeak
+                ? { background: "rgba(44,196,138,0.12)", border: "0.5px solid rgba(44,196,138,0.3)", color: "#2cc48a", fontSize: 12, padding: "5px 12px", borderRadius: 100, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }
+                : { border: "0.5px solid rgba(255,255,255,0.18)", color: "#8892a4", fontSize: 12, padding: "5px 12px", borderRadius: 100, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }
+              }
+            >
+              🔊 Voice {autoSpeak ? "ON" : "OFF"}
+            </button>
+            {phase === "studying" && cards.length > 0 && (
+              <span style={{ fontSize: 13, color: "#8892a4", fontWeight: 500 }}>
+                Card {currentIndex + 1} of {cards.length}
+              </span>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-        {/* Generating Phase */}
+      {/* ── Main content ── */}
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px 48px" }}>
+
+        {/* ══ Generating Phase ══ */}
         {phase === "generating" && (
-          <div className="text-center space-y-6 fade-in py-20">
+          <div className="flex flex-col items-center justify-center gap-6 py-24 fade-in">
             <div className="text-5xl float">🃏</div>
-            <div>
-              <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2" style={{ color: "#e8e8f0" }}>
                 Generating your flash cards...
               </h2>
-              <p className="text-[var(--text-secondary)]">
-                Claude is crafting <span className="text-[var(--accent)] font-semibold">{count} cards</span> for <span className="text-[var(--text-primary)] font-medium">{subcategory}</span>
+              <p style={{ color: "#606080" }}>
+                Crafting{" "}
+                <span className="font-semibold" style={{ color: "#7c6fff" }}>{count} cards</span>
+                {" "}for <span className="font-medium" style={{ color: "#e8e8f0" }}>{subcategory}</span>
               </p>
             </div>
-            <div className="w-full max-w-sm mx-auto space-y-2">
-              <div className="bg-[var(--bg-secondary)] rounded-full h-2.5 overflow-hidden border border-[var(--border)]">
+            <div className="w-full max-w-sm space-y-2">
+              <div className="rounded-full overflow-hidden" style={{ height: 4, background: "rgba(255,255,255,0.06)" }}>
                 <div
                   className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${(progress / count) * 100}%`,
-                    background: "linear-gradient(90deg, var(--gradient-start), var(--gradient-end))",
-                  }}
+                  style={{ width: `${(progress / count) * 100}%`, background: "linear-gradient(90deg, #7c6fff, #38bdf8)" }}
                 />
               </div>
-              <p className="text-xs text-[var(--text-secondary)]">{progress} / {count} cards</p>
+              <p className="text-xs text-center" style={{ color: "#505068" }}>{progress} / {count} cards</p>
             </div>
-            {error && <p className="text-red-400 text-sm bg-red-500/10 px-4 py-2 rounded-xl border border-red-500/20">{error}</p>}
+            {error && (
+              <p className="text-sm px-4 py-2.5 rounded-xl"
+                style={{ color: "#f87171", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                {error}
+              </p>
+            )}
           </div>
         )}
 
-        {/* Studying Phase */}
+        {/* ══ Studying Phase ══ */}
         {phase === "studying" && cards.length > 0 && (
-          <div className="space-y-6 fade-in">
-            {/* Mode Selector */}
-            <div className="flex gap-2 flex-wrap">
+          <div className="py-4 fade-in">
+
+            {/* Mode tabs */}
+            <div className="flex items-center gap-2 mb-4">
               {(["flash", "quiz"] as StudyMode[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => { setMode(m); setCurrentIndex(0); setEvaluation(null); }}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95"
+                  style={
                     mode === m
-                      ? "bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)] text-white shadow-md"
-                      : "bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)] hover:border-[var(--border-bright)]"
-                  }`}
+                      ? { background: "linear-gradient(135deg, #7c6fff, #38bdf8)", color: "#fff" }
+                      : { background: "rgba(255,255,255,0.05)", color: "#606080", border: "1.5px solid rgba(255,255,255,0.09)" }
+                  }
                 >
                   {m === "flash" ? "🃏 Flash Cards" : "❓ Quiz Mode"}
                 </button>
               ))}
             </div>
 
-            <ProgressBar
-              current={currentIndex + 1}
-              total={cards.length}
-              known={known.size}
-              review={review.size}
-              skipped={skipped.size}
-            />
+            {/* Progress bar */}
+            <div className="mb-6">
+              <ProgressBar
+                current={currentIndex + 1}
+                total={cards.length}
+                known={known.size}
+                review={review.size}
+                skipped={skipped.size}
+              />
+            </div>
 
+            {/* Card */}
             {mode === "flash" && (
-              <>
-                <CardFlipper
-                  cards={cards}
-                  currentIndex={currentIndex}
-                  onNext={() => setCurrentIndex((i) => Math.min(i + 1, cards.length - 1))}
-                  onPrev={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
-                  onKnown={(id) => { setKnown((s) => new Set([...s, id])); setReview((s) => { const n = new Set(s); n.delete(id); return n; }); }}
-                  onReview={(id) => { setReview((s) => new Set([...s, id])); setKnown((s) => { const n = new Set(s); n.delete(id); return n; }); }}
-                  onSkip={(id) => setSkipped((s) => new Set([...s, id]))}
-                  onComplete={handleComplete}
-                  autoSpeak={autoSpeak}
-                  onTranscript={handleTranscript}
-                />
-
-                {/* AI Evaluation Result */}
-                {(evaluating || evaluation) && (
-                  <div className={`rounded-xl p-4 border fade-in ${
-                    evaluating ? "border-[var(--border)] bg-[var(--bg-secondary)]" :
-                    evaluation?.correct ? "border-green-500/50 bg-green-500/10" : "border-red-500/50 bg-red-500/10"
-                  }`}>
-                    {evaluating ? (
-                      <p className="text-[var(--text-secondary)] text-sm">Evaluating your answer...</p>
-                    ) : (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span>{evaluation?.correct ? "✅" : "❌"}</span>
-                          <span className="font-medium text-sm">{evaluation?.feedback}</span>
-                          <span className="ml-auto text-sm text-[var(--accent)]">{evaluation?.score}/100</span>
-                        </div>
-                        {evaluation?.missing && (
-                          <p className="text-xs text-[var(--text-secondary)]">Missing: {evaluation.missing}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
+              <CardFlipper
+                cards={cards}
+                currentIndex={currentIndex}
+                onNext={() => setCurrentIndex((i) => Math.min(i + 1, cards.length - 1))}
+                onPrev={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
+                onKnown={(id) => { setKnown((s) => new Set([...s, id])); setReview((s) => { const n = new Set(s); n.delete(id); return n; }); }}
+                onReview={(id) => { setReview((s) => new Set([...s, id])); setKnown((s) => { const n = new Set(s); n.delete(id); return n; }); }}
+                onSkip={(id) => setSkipped((s) => new Set([...s, id]))}
+                onComplete={handleComplete}
+                autoSpeak={autoSpeak}
+                onTranscript={handleTranscript}
+              />
             )}
 
             {mode === "quiz" && (
@@ -304,76 +324,75 @@ export default function StudyPage({ params }: PageProps) {
                 choices={generateChoices(cards[currentIndex], cards)}
                 onAnswer={(correct) => {
                   const card = cards[currentIndex];
-                  if (correct) {
-                    setKnown((s) => new Set([...s, card.id]));
-                  } else {
-                    setReview((s) => new Set([...s, card.id]));
-                  }
+                  if (correct) setKnown((s) => new Set([...s, card.id]));
+                  else setReview((s) => new Set([...s, card.id]));
                   setTimeout(() => {
-                    if (currentIndex < cards.length - 1) {
-                      setCurrentIndex((i) => i + 1);
-                    } else {
-                      handleComplete();
-                    }
+                    if (currentIndex < cards.length - 1) setCurrentIndex((i) => i + 1);
+                    else handleComplete();
                   }, 1200);
                 }}
               />
             )}
 
-            <StudyStats
-              known={known.size}
-              review={review.size}
-              skipped={skipped.size}
-              total={cards.length}
-            />
+            {/* Stats */}
+            <div className="mt-8">
+              <StudyStats
+                known={known.size}
+                review={review.size}
+                skipped={skipped.size}
+                total={cards.length}
+              />
+            </div>
           </div>
         )}
 
-        {/* Complete Phase */}
+        {/* ══ Complete Phase ══ */}
         {phase === "complete" && (
-          <div className="text-center space-y-8 fade-up py-8">
+          <div className="flex flex-col items-center gap-6 text-center py-16 fade-up">
             <div className="text-6xl float">🎉</div>
             <div>
               <h2 className="text-3xl font-bold gradient-text">Session Complete!</h2>
-              <p className="text-[var(--text-secondary)] mt-2">Great work — here's how you did</p>
+              <p className="mt-2" style={{ color: "#606080" }}>Great work — here's how you did</p>
             </div>
 
-            <StudyStats
-              known={known.size}
-              review={review.size}
-              skipped={skipped.size}
-              total={cards.length}
-            />
+            <div className="w-full max-w-sm">
+              <StudyStats
+                known={known.size}
+                review={review.size}
+                skipped={skipped.size}
+                total={cards.length}
+              />
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => { setCurrentIndex(0); setKnown(new Set()); setReview(new Set()); setSkipped(new Set()); setPhase("studying"); setEvaluation(null); }}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-[var(--gradient-start)] to-[var(--gradient-end)] text-white font-bold transition-all btn-glow"
+                onClick={() => {
+                  setCurrentIndex(0); setKnown(new Set()); setReview(new Set());
+                  setSkipped(new Set()); setPhase("studying"); setEvaluation(null);
+                }}
+                className="px-6 py-3 rounded-xl font-bold transition-all btn-glow"
+                style={{ background: "linear-gradient(135deg, #7c6fff, #38bdf8)", color: "#fff" }}
               >
                 🔄 Study Again
               </button>
-
               {review.size > 0 && (
                 <button
                   onClick={() => {
                     const reviewCards = cards.filter((c) => review.has(c.id));
-                    setCards(reviewCards);
-                    setCurrentIndex(0);
-                    setKnown(new Set());
-                    setReview(new Set());
-                    setSkipped(new Set());
-                    setPhase("studying");
-                    setEvaluation(null);
+                    setCards(reviewCards); setCurrentIndex(0);
+                    setKnown(new Set()); setReview(new Set());
+                    setSkipped(new Set()); setPhase("studying"); setEvaluation(null);
                   }}
-                  className="px-6 py-3 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 font-bold transition-all"
+                  className="px-6 py-3 rounded-xl font-bold transition-all"
+                  style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.25)" }}
                 >
                   ❌ Review Cards ({review.size})
                 </button>
               )}
-
               <Link
                 href="/"
-                className="px-6 py-3 rounded-xl bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)] border border-[var(--border)] font-bold transition-all"
+                className="px-6 py-3 rounded-xl font-bold transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", color: "#808098", border: "1px solid rgba(255,255,255,0.09)" }}
               >
                 ← New Topic
               </Link>

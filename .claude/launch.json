@@ -2,10 +2,17 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "flipdai",
+      "name": "flipdai-next",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "flipdai-standalone",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-p", "4321", "--no-clipboard", "."],
+      "port": 4321
     }
   ]
 }

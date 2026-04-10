@@ -8,7 +8,10 @@
       "Read(//Users/swathi.chadalavada/.nvm/versions/**)",
       "Read(//opt/homebrew/bin/**)",
       "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin:/opt/homebrew/opt/node/bin\")",
-      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")"
+      "Bash(export PATH=\"$PATH:/usr/local/bin:/opt/homebrew/bin\")",
+      "Bash(export PATH=\"$PATH:/usr/local/bin\")",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)"
     ]
   }
 }

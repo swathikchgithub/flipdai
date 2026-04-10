@@ -10,23 +10,22 @@ interface StudyStatsProps {
 export default function StudyStats({ known, review, skipped, total }: StudyStatsProps) {
   const score = total > 0 ? Math.round((known / total) * 100) : 0;
   return (
-    <div className="grid grid-cols-4 gap-3 text-center">
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-        <div className="text-2xl font-bold text-[var(--green)]">{known}</div>
-        <div className="text-xs text-[var(--text-secondary)]">Known</div>
-      </div>
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-        <div className="text-2xl font-bold text-[var(--red)]">{review}</div>
-        <div className="text-xs text-[var(--text-secondary)]">Review</div>
-      </div>
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-        <div className="text-2xl font-bold text-[var(--text-secondary)]">{skipped}</div>
-        <div className="text-xs text-[var(--text-secondary)]">Skipped</div>
-      </div>
-      <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-        <div className="text-2xl font-bold text-[var(--accent)]">{score}%</div>
-        <div className="text-xs text-[var(--text-secondary)]">Score</div>
-      </div>
+    <div className="grid grid-cols-4 gap-2 text-center">
+      {[
+        { value: known,   label: "Known",   color: "#34d399" },
+        { value: review,  label: "Review",  color: "#f87171" },
+        { value: skipped, label: "Skipped", color: "#606080" },
+        { value: `${score}%`, label: "Score", color: "#7c6fff" },
+      ].map(({ value, label, color }) => (
+        <div
+          key={label}
+          className="rounded-xl py-2"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <div className="text-lg font-bold" style={{ color }}>{value}</div>
+          <div className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#404058" }}>{label}</div>
+        </div>
+      ))}
     </div>
   );
 }
