@@ -47,7 +47,7 @@ test.describe("Card Front Face", () => {
   test("textarea is present for typing an answer", async ({ page }) => {
     const textarea = page.locator("textarea");
     await expect(textarea).toBeVisible();
-    await expect(textarea).toHaveAttribute("placeholder", /type your answer/i);
+    await expect(textarea).toHaveAttribute("placeholder", /type|speak.*answer/i);
   });
 
   test("button shows 'Reveal Answer' when textarea is empty", async ({ page }) => {

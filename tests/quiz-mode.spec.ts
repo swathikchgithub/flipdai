@@ -43,18 +43,9 @@ test.describe("Quiz Mode", () => {
   });
 
   test("auto-advances after answering", async ({ page }) => {
-    const buttons = page.getByRole("button");
-    const allBtns = await buttons.all();
     // Click any answer choice
-    for (const btn of allBtns) {
-      const text = await btn.textContent();
-      const name = await btn.getAttribute("aria-label");
-      // Skip mode selector and nav buttons
-      if (text && text.length > 10 && !text.includes("Flash") && !text.includes("Quiz") && !text.includes("Home")) {
-        await btn.click();
-        break;
-      }
-    }
+    const quizBtn = page.locator(".grid.grid-cols-1 button").first();
+    await quizBtn.click();
     // After ~1.2s it should advance
     await page.waitForTimeout(1500);
     // Next card should be showing
@@ -63,14 +54,8 @@ test.describe("Quiz Mode", () => {
 
   test("completing all quiz cards triggers session complete", async ({ page }) => {
     for (let i = 0; i < MOCK_CARDS.length; i++) {
-      const allBtns = await page.getByRole("button").all();
-      for (const btn of allBtns) {
-        const text = await btn.textContent();
-        if (text && text.length > 10 && !text.match(/Flash|Quiz|Home|←/)) {
-          await btn.click();
-          break;
-        }
-      }
+      const quizBtn = page.locator(".grid.grid-cols-1 button").first();
+      await quizBtn.click();
       await page.waitForTimeout(1400);
     }
     await expect(page.getByText(/Session Complete/)).toBeVisible({ timeout: 5000 });
@@ -83,14 +68,8 @@ test.describe("Quiz Mode", () => {
 
   test("switching modes resets to first card", async ({ page }) => {
     // Advance in quiz mode
-    const allBtns = await page.getByRole("button").all();
-    for (const btn of allBtns) {
-      const text = await btn.textContent();
-      if (text && text.length > 10 && !text.match(/Flash|Quiz|Home|←/)) {
-        await btn.click();
-        break;
-      }
-    }
+    const quizBtn = page.locator(".grid.grid-cols-1 button").first();
+    await quizBtn.click();
     await page.waitForTimeout(1400);
     // Switch back to flash
     await page.getByRole("button", { name: /Flash Cards/ }).click();

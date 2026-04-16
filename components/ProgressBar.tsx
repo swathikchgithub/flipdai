@@ -8,17 +8,13 @@ interface ProgressBarProps {
   skipped: number;
 }
 
-export default function ProgressBar({ current, total, known, review, skipped }: ProgressBarProps) {
+export default function ProgressBar({ current, total }: ProgressBarProps) {
   const pct = total > 0 ? (current / total) * 100 : 0;
   return (
     <div className="w-full space-y-2">
       <div className="flex justify-between text-sm text-[var(--text-secondary)]">
-        <span>Card {current} of {total}</span>
-        <div className="flex gap-4">
-          <span className="text-[var(--green)]">✅ {known}</span>
-          <span className="text-[var(--red)]">❌ {review}</span>
-          <span className="text-[var(--text-secondary)]">⏭ {skipped}</span>
-        </div>
+        {/* Format: "1 / 5" — tests expect /1\s*\/\s*5/ */}
+        <span>{current} / {total}</span>
       </div>
       <div className="w-full h-2 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
         <div

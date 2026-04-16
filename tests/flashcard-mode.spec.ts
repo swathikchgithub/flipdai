@@ -23,7 +23,7 @@ test.describe("Flash Card Mode", () => {
   });
 
   test("shows subcategory label on card", async ({ page }) => {
-    await expect(page.getByText("React")).toBeVisible();
+    await expect(page.getByText("React", { exact: true }).first()).toBeVisible();
   });
 
   test("shows 'Click to flip' hint text", async ({ page }) => {
@@ -36,18 +36,18 @@ test.describe("Flash Card Mode", () => {
     // Click the card
     await page.locator(".card-flip-container").click();
     // Answer label appears
-    await expect(page.getByText("Answer")).toBeVisible();
+    await expect(page.locator(".card-flip-inner")).toHaveClass(/flipped/);
     await expect(page.getByText(MOCK_CARDS[0].back)).toBeVisible();
   });
 
   test("pressing Space flips the card", async ({ page }) => {
     await page.keyboard.press("Space");
-    await expect(page.getByText("Answer")).toBeVisible();
+    await expect(page.locator(".card-flip-inner")).toHaveClass(/flipped/);
   });
 
   test("pressing Space again flips back to front", async ({ page }) => {
     await page.keyboard.press("Space");
-    await expect(page.getByText("Answer")).toBeVisible();
+    await expect(page.locator(".card-flip-inner")).toHaveClass(/flipped/);
     await page.keyboard.press("Space");
     await expect(page.getByText(MOCK_CARDS[0].front)).toBeVisible();
   });
@@ -83,7 +83,7 @@ test.describe("Flash Card Mode", () => {
     // Should advance to card 2
     await expect(page.getByText(MOCK_CARDS[1].front)).toBeVisible();
     // Known count should be 1
-    await expect(page.getByText("1")).toBeVisible();
+    await expect(page.getByText(/1 Known/i)).toBeVisible();
   });
 
   test("key 2 marks card as Review and advances", async ({ page }) => {
@@ -132,11 +132,11 @@ test.describe("Flash Card Mode", () => {
   test("card resets to front face on navigation", async ({ page }) => {
     // Flip card 1
     await page.keyboard.press("Space");
-    await expect(page.getByText("Answer")).toBeVisible();
+    await expect(page.locator(".card-back").getByText("Answer", { exact: true })).toBeVisible();
     // Navigate to card 2
     await page.keyboard.press("ArrowRight");
     // Card 2 should be front face (Answer label gone)
-    await expect(page.getByText("Answer")).not.toBeVisible();
+    await expect(page.locator(".card-flip-inner")).not.toHaveClass(/flipped/);
     await expect(page.getByText(MOCK_CARDS[1].front)).toBeVisible();
   });
 
@@ -145,12 +145,13 @@ test.describe("Flash Card Mode", () => {
     await page.keyboard.press("2"); // review
     await page.getByRole("button", { name: /Skip/ }).click(); // skipped
     // Stats section should reflect counts
-    await expect(page.getByText("1")).toBeVisible(); // at least 1 known shown somewhere
+    await expect(page.getByText(/1 Known/i)).toBeVisible(); // at least 1 known shown somewhere
   });
 
   test("completing all cards triggers complete phase", async ({ page }) => {
     for (let i = 0; i < MOCK_CARDS.length; i++) {
       await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(100);
     }
     await expect(page.getByText(/Session Complete/)).toBeVisible({ timeout: 5000 });
   });

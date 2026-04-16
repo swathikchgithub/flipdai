@@ -54,12 +54,15 @@ export async function mockAllAPIs(page: Page, cards: FlashCard[] = MOCK_CARDS) {
  */
 export async function clearStorage(page: Page) {
   await page.addInitScript(() => {
-    localStorage.removeItem("flipdai_history");
-    localStorage.removeItem("flipdai_streak");
-    localStorage.removeItem("flipdai_last_study");
-    Object.keys(localStorage)
-      .filter((k) => k.startsWith("flipdai_session_"))
-      .forEach((k) => localStorage.removeItem(k));
+    if (!sessionStorage.getItem("flipdai_cleared")) {
+      localStorage.removeItem("flipdai_history");
+      localStorage.removeItem("flipdai_streak");
+      localStorage.removeItem("flipdai_last_study");
+      Object.keys(localStorage)
+        .filter((k) => k.startsWith("flipdai_session_"))
+        .forEach((k) => localStorage.removeItem(k));
+      sessionStorage.setItem("flipdai_cleared", "1");
+    }
   });
 }
 
@@ -69,45 +72,48 @@ export async function clearStorage(page: Page) {
  */
 export async function seedHistory(page: Page) {
   await page.addInitScript(() => {
-    const now = Date.now();
-    const history = [
-      {
-        id: "hist-1",
-        topic: "tech-topics",
-        subcategory: "React",
-        cardCount: 10,
-        knownCount: 8,
-        reviewCount: 2,
-        date: new Date(now - 86400000).toISOString(),
-        score: 80,
-      },
-      {
-        id: "hist-2",
-        topic: "sat-prep",
-        subcategory: "Math",
-        cardCount: 10,
-        knownCount: 4,
-        reviewCount: 6,
-        date: new Date(now - 172800000).toISOString(),
-        score: 40,
-      },
-      {
-        id: "hist-3",
-        topic: "languages",
-        subcategory: "Spanish",
-        cardCount: 10,
-        knownCount: 1,
-        reviewCount: 9,
-        date: new Date(now - 259200000).toISOString(),
-        score: 10,
-      },
-    ];
-    localStorage.setItem("flipdai_history", JSON.stringify(history));
-    localStorage.setItem("flipdai_streak", "3");
-    localStorage.setItem(
-      "flipdai_last_study",
-      new Date(now - 86400000).toISOString().split("T")[0]
-    );
+    if (!sessionStorage.getItem("flipdai_seeded")) {
+      const now = Date.now();
+      const history = [
+        {
+          id: "hist-1",
+          topic: "tech-topics",
+          subcategory: "React",
+          cardCount: 10,
+          knownCount: 8,
+          reviewCount: 2,
+          date: new Date(now - 86400000).toISOString(),
+          score: 80,
+        },
+        {
+          id: "hist-2",
+          topic: "sat-prep",
+          subcategory: "Math",
+          cardCount: 10,
+          knownCount: 4,
+          reviewCount: 6,
+          date: new Date(now - 172800000).toISOString(),
+          score: 40,
+        },
+        {
+          id: "hist-3",
+          topic: "languages",
+          subcategory: "Spanish",
+          cardCount: 10,
+          knownCount: 1,
+          reviewCount: 9,
+          date: new Date(now - 259200000).toISOString(),
+          score: 10,
+        },
+      ];
+      localStorage.setItem("flipdai_history", JSON.stringify(history));
+      localStorage.setItem("flipdai_streak", "3");
+      localStorage.setItem(
+        "flipdai_last_study",
+        new Date(now - 86400000).toISOString().split("T")[0]
+      );
+      sessionStorage.setItem("flipdai_seeded", "1");
+    }
   });
 }
 

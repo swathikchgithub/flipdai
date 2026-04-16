@@ -17,14 +17,15 @@ test.describe("Landing Page", () => {
   });
 
   test("shows Powered by Claude AI badge", async ({ page }) => {
-    await expect(page.getByText("Powered by Claude AI")).toBeVisible();
+    await expect(page.getByText("8 AI Models")).toBeVisible();
   });
 
-  test("shows all 8 topic cards", async ({ page }) => {
+  test("shows all 9 topic cards", async ({ page }) => {
     const topics = [
       "Job Interviews",
       "SAT Prep",
       "AP Exams",
+      "AP Psychology",
       "Certifications",
       "Languages",
       "Sciences",
@@ -32,7 +33,7 @@ test.describe("Landing Page", () => {
       "Custom Topic",
     ];
     for (const topic of topics) {
-      await expect(page.getByText(topic)).toBeVisible();
+      await expect(page.getByText(topic).first()).toBeVisible();
     }
   });
 

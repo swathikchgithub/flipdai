@@ -20,21 +20,21 @@
   --blue: #60a5fa;
   --gradient-start: #7c6fff;
   --gradient-end: #38bdf8;
-
-  /* Provider accent colors */
   --openai:      #10b981;
   --anthropic:   #f97316;
   --groq:        #a855f7;
   --google:      #3b82f6;
   --openrouter:  #ec4899;
-
-  /* Extra surface + text */
   --bg-elevated: #1a1a2e;
   --text-muted:  #6a6a8a;
 }
 
-* {
-  box-sizing: border-box;
+* { box-sizing: border-box; }
+
+/* Fix: ensure html and body fill full height so pages have no black gap */
+html, body {
+  height: 100%;
+  margin: 0;
 }
 
 body {
@@ -44,7 +44,13 @@ body {
   min-height: 100vh;
 }
 
-/* Gradient text */
+/* Next.js root div must also fill height */
+#__next,
+[data-nextjs-router],
+main {
+  min-height: 100vh;
+}
+
 .gradient-text {
   background: linear-gradient(135deg, #7c6fff 20%, #38bdf8 80%);
   -webkit-background-clip: text;
@@ -53,7 +59,6 @@ body {
   display: inline;
 }
 
-/* Glass card */
 .glass {
   background: rgba(22, 22, 42, 0.7);
   backdrop-filter: blur(12px);
@@ -61,14 +66,12 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Gradient border */
 .gradient-border {
   position: relative;
   background: var(--bg-card);
   border: 1px solid transparent;
   background-clip: padding-box;
 }
-
 .gradient-border::before {
   content: "";
   position: absolute;
@@ -80,22 +83,17 @@ body {
 }
 
 /* Card flip */
-.card-flip-container {
-  perspective: 1200px;
-}
+.card-flip-container { perspective: 1200px; }
 
 .card-flip-inner {
   position: relative;
   width: 100%;
-  /* min-height drives the container size; faces stretch to fill via inset: 0 */
   min-height: 380px;
   transition: transform 0.45s ease;
   transform-style: preserve-3d;
 }
 
-.card-flip-inner.flipped {
-  transform: rotateY(180deg);
-}
+.card-flip-inner.flipped { transform: rotateY(180deg); }
 
 .card-face {
   position: absolute;
@@ -107,61 +105,38 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 2rem 1.75rem;
 }
 
-.card-back {
-  transform: rotateY(180deg);
-}
+.card-back { transform: rotateY(180deg); }
 
 .difficulty-1 { border-left: 3px solid var(--green); }
 .difficulty-2 { border-left: 3px solid var(--yellow); }
 .difficulty-3 { border-left: 3px solid var(--red); }
 
-/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
 }
-
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(124, 111, 255, 0.4); }
   50% { box-shadow: 0 0 0 10px rgba(124, 111, 255, 0); }
 }
 
-.fade-in {
-  animation: fadeIn 0.35s ease-out;
-}
+.fade-in { animation: fadeIn 0.35s ease-out; }
+.fade-up { animation: fadeUp 0.5s ease-out; }
+.float   { animation: float 3s ease-in-out infinite; }
+.pulse-glow { animation: pulse-glow 2s infinite; }
 
-.fade-up {
-  animation: fadeUp 0.5s ease-out;
-}
-
-.float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.pulse-glow {
-  animation: pulse-glow 2s infinite;
-}
-
-/* Glow button */
 .btn-glow {
   box-shadow: 0 0 20px rgba(124, 111, 255, 0.35), 0 4px 15px rgba(0, 0, 0, 0.3);
   transition: box-shadow 0.2s ease, transform 0.1s ease;
@@ -170,11 +145,8 @@ body {
   box-shadow: 0 0 30px rgba(124, 111, 255, 0.55), 0 6px 20px rgba(0, 0, 0, 0.4);
   transform: translateY(-1px);
 }
-.btn-glow:active {
-  transform: translateY(0);
-}
+.btn-glow:active { transform: translateY(0); }
 
-/* Subtle grid background */
 .bg-grid {
   background-image:
     linear-gradient(rgba(124, 111, 255, 0.03) 1px, transparent 1px),
@@ -182,7 +154,6 @@ body {
   background-size: 40px 40px;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }

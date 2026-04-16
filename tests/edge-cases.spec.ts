@@ -86,14 +86,20 @@ test.describe("Edge Cases", () => {
     await page.goto("/study/sess25?topic=tech-topics&sub=React&count=25");
     await expect(page.getByText(/1\s*\/\s*25/)).toBeVisible({ timeout: 10000 });
     // Advance a few cards
-    for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowRight");
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(100);
+    }
     await expect(page.getByText(/6\s*\/\s*25/)).toBeVisible();
   });
 
   test("multiple sessions accumulate in history", async ({ page }) => {
     // Session 1
     await goToStudySession(page, { cards: MOCK_CARDS, count: 5 });
-    for (let i = 0; i < MOCK_CARDS.length; i++) await page.keyboard.press("1");
+    for (let i = 0; i < MOCK_CARDS.length; i++) {
+      await page.keyboard.press("1");
+      await page.waitForTimeout(100);
+    }
     await page.waitForSelector("text=Session Complete", { timeout: 5000 });
 
     // Go to history — 1 entry
@@ -105,7 +111,10 @@ test.describe("Edge Cases", () => {
     await mockGenerate(page, satCards);
     await page.goto("/study/sess2?topic=sat-prep&sub=Math&count=5");
     await page.waitForSelector("text=Flash Cards", { timeout: 8000 });
-    for (let i = 0; i < satCards.length; i++) await page.keyboard.press("ArrowRight");
+    for (let i = 0; i < satCards.length; i++) {
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(100);
+    }
     await page.waitForSelector("text=Session Complete", { timeout: 5000 });
 
     await page.goto("/history");

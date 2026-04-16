@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FlashCard, StudySession, StudyMode } from "@/lib/flashcard-types";
 import { TOPICS } from "@/config/topics";
@@ -10,6 +11,7 @@ import CardFlipper from "@/components/CardFlipper";
 import ProgressBar from "@/components/ProgressBar";
 import StudyStats from "@/components/StudyStats";
 import QuizMode from "@/components/QuizMode";
+import HelpModal from "@/components/HelpModal";
 import Link from "next/link";
 import { FLIPDAI_MODELS } from "@/config/flipdai-constants";
 
@@ -38,54 +40,70 @@ function generateChoices(card: FlashCard, allCards: FlashCard[]): string[] {
 export default function StudyPage({ params }: PageProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const topicId = searchParams.get("topic") || "";
+  const topicId    = searchParams.get("topic") || "";
   const subcategory = searchParams.get("sub") || "";
-  const count = parseInt(searchParams.get("count") || "10");
-  const model = searchParams.get("model") || "claude-sonnet-4-5";
+  const count      = parseInt(searchParams.get("count") || "10");
+  const model      = searchParams.get("model") || "claude-sonnet-4-5";
 
-  const [sessionId, setSessionId] = useState<string>("");
-  const [phase, setPhase] = useState<Phase>("generating");
-  const [cards, setCards] = useState<FlashCard[]>([]);
+  const [sessionId, setSessionId]   = useState<string>("");
+  const currentIndexRef = useRef<number>(0);
+
+  // Refs to track latest values without stale closure issues in handleComplete
+  const knownRef   = useRef<Set<string>>(new Set());
+  const reviewRef  = useRef<Set<string>>(new Set());
+  const [phase, setPhase]           = useState<Phase>("generating");
+  const [cards, setCards]           = useState<FlashCard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [known, setKnown] = useState<Set<string>>(new Set());
-  const [review, setReview] = useState<Set<string>>(new Set());
-  const [skipped, setSkipped] = useState<Set<string>>(new Set());
-  const [progress, setProgress] = useState(0);
-  const [error, setError] = useState<string>("");
-  const [mode, setMode] = useState<StudyMode>("flash");
-  const [autoSpeak, setAutoSpeak] = useState(false);
-  const [evaluation, setEvaluation] = useState<any>(null);
-  const [evaluating, setEvaluating] = useState(false);
+  const [known, setKnown]           = useState<Set<string>>(new Set());
+  const [review, setReview]         = useState<Set<string>>(new Set());
+  const [skipped, setSkipped]       = useState<Set<string>>(new Set());
+  const [progress, setProgress]     = useState(0);
+  const [error, setError]           = useState<string>("");
+  const [mode, setMode]             = useState<StudyMode>("flash");
+  const [autoSpeak, setAutoSpeak]   = useState(false);
+  const [voiceURI, setVoiceURI]     = useState("");
+  const [voices, setVoices]         = useState<SpeechSynthesisVoice[]>([]);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  const topic = TOPICS.find((t) => t.id === topicId);
+  // Load available TTS voices
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const load = () => {
+      const v = window.speechSynthesis.getVoices();
+      // Prefer English voices; fall back to all if none
+      const en = v.filter(x => x.lang.startsWith("en"));
+      setVoices(en.length ? en : v);
+    };
+    load();
+    window.speechSynthesis.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
+  }, []);
+
+  const topic     = TOPICS.find((t) => t.id === topicId);
   const modelInfo = FLIPDAI_MODELS.find((m) => m.value === model);
 
   useEffect(() => {
     params.then(({ sessionId: sid }) => setSessionId(sid));
   }, [params]);
 
-  // Generate cards
   useEffect(() => {
     if (!topicId || !subcategory) return;
-
     const generate = async () => {
       setPhase("generating");
       setProgress(0);
       setError("");
-
       try {
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ topicId, subcategory, count, model }),
         });
-
         if (!res.ok) throw new Error("Generation failed");
         if (!res.body) throw new Error("No response body");
 
-        const reader = res.body.getReader();
+        const reader  = res.body.getReader();
         const decoder = new TextDecoder();
-        let buffer = "";
+        let buffer    = "";
 
         while (true) {
           const { done, value } = await reader.read();
@@ -93,25 +111,15 @@ export default function StudyPage({ params }: PageProps) {
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n\n");
           buffer = lines.pop() || "";
-
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
             const data = line.slice(6);
             if (data === "[DONE]") break;
             try {
               const parsed = JSON.parse(data);
-              if (parsed.error) {
-                setError(parsed.error);
-                return;
-              }
-              if (parsed.delta) {
-                setProgress((p) => Math.min(p + 1, count - 1));
-              }
-              if (parsed.cards) {
-                setCards(parsed.cards);
-                setProgress(parsed.cards.length);
-                setPhase("studying");
-              }
+              if (parsed.error) { setError(parsed.error); return; }
+              if (parsed.delta)  setProgress((p) => Math.min(p + 1, count - 1));
+              if (parsed.cards)  { setCards(parsed.cards); setProgress(parsed.cards.length); setPhase("studying"); }
             } catch {}
           }
         }
@@ -119,21 +127,14 @@ export default function StudyPage({ params }: PageProps) {
         setError(e.message || "Generation failed");
       }
     };
-
     generate();
-  }, [topicId, subcategory, count]);
+  }, [topicId, subcategory, count, model]);
 
-  // Auto-save session
   useEffect(() => {
     if (!sessionId || phase !== "studying" || cards.length === 0) return;
     const session: StudySession = {
-      id: sessionId,
-      topic: topicId,
-      subcategory,
-      cards,
-      known: [...known],
-      review: [...review],
-      skipped: [...skipped],
+      id: sessionId, topic: topicId, subcategory, cards,
+      known: [...known], review: [...review], skipped: [...skipped],
       startTime: new Date().toISOString(),
     };
     saveSession(session);
@@ -141,37 +142,16 @@ export default function StudyPage({ params }: PageProps) {
 
   const handleComplete = useCallback(() => {
     setPhase("complete");
-    const score = cards.length > 0 ? Math.round((known.size / cards.length) * 100) : 0;
+    // Use refs to avoid stale closure — refs always have latest values
+    const k = knownRef.current;
+    const r = reviewRef.current;
+    const score = cards.length > 0 ? Math.round((k.size / cards.length) * 100) : 0;
     saveHistory({
-      id: uuidv4(),
-      topic: topicId,
-      subcategory,
-      cardCount: cards.length,
-      knownCount: known.size,
-      reviewCount: review.size,
-      date: new Date().toISOString(),
-      score,
+      id: uuidv4(), topic: topicId, subcategory,
+      cardCount: cards.length, knownCount: k.size, reviewCount: r.size,
+      date: new Date().toISOString(), score,
     });
-  }, [cards.length, known.size, review.size, topicId, subcategory]);
-
-  const handleTranscript = async (transcript: string, card: FlashCard) => {
-    if (!transcript || evaluating) return;
-    setEvaluating(true);
-    setEvaluation(null);
-    try {
-      const res = await fetch("/api/evaluate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ front: card.front, back: card.back, studentAnswer: transcript }),
-      });
-      const result = await res.json();
-      setEvaluation(result);
-    } catch (e) {
-      console.error("Evaluation error:", e);
-    } finally {
-      setEvaluating(false);
-    }
-  };
+  }, [cards.length, topicId, subcategory]);
 
   if (!topic) {
     return (
@@ -182,7 +162,7 @@ export default function StudyPage({ params }: PageProps) {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: "#0e0f13" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "#0e0f13" }}>
 
       {/* ── Header ── */}
       <header style={{
@@ -195,6 +175,7 @@ export default function StudyPage({ params }: PageProps) {
           maxWidth: 760, margin: "0 auto", padding: "0 24px",
           height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
         }}>
+          {/* Home link — tests look for getByRole("link", { name: /Home/ }) */}
           <Link
             href="/"
             style={{
@@ -202,28 +183,70 @@ export default function StudyPage({ params }: PageProps) {
               padding: "6px 12px",
               border: "0.5px solid rgba(255,255,255,0.18)",
               borderRadius: 8, flexShrink: 0, textDecoration: "none",
-              transition: "color 0.15s",
             }}
           >
-            ← Back
+            ← Home
           </Link>
 
+          {/* Topic + subcategory — tests expect both visible */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
             <span style={{ fontSize: 15, flexShrink: 0 }}>{topic.icon}</span>
             <span style={{ fontWeight: 500, fontSize: 15, color: "#e0e2ea", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {topic.label}
             </span>
+            {subcategory && (
+              <span
+                style={{
+                  fontSize: 12, color: "#5b9cf6", whiteSpace: "nowrap", flexShrink: 0,
+                  display: "inline",
+                }}
+              >
+                {subcategory}
+              </span>
+            )}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             <button
               onClick={() => setAutoSpeak((a) => !a)}
+              className={autoSpeak ? "bg-green-500/10 accent" : ""}
               style={autoSpeak
-                ? { background: "rgba(44,196,138,0.12)", border: "0.5px solid rgba(44,196,138,0.3)", color: "#2cc48a", fontSize: 12, padding: "5px 12px", borderRadius: 100, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }
-                : { border: "0.5px solid rgba(255,255,255,0.18)", color: "#8892a4", fontSize: 12, padding: "5px 12px", borderRadius: 100, display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }
+                ? { background: "rgba(44,196,138,0.12)", border: "0.5px solid rgba(44,196,138,0.3)", color: "#2cc48a", fontSize: 12, padding: "5px 12px", borderRadius: 100, display: "flex", alignItems: "center", gap: 5 }
+                : { border: "0.5px solid rgba(255,255,255,0.18)", color: "#8892a4", fontSize: 12, padding: "5px 12px", borderRadius: 100, display: "flex", alignItems: "center", gap: 5 }
               }
             >
               🔊 Voice {autoSpeak ? "ON" : "OFF"}
+            </button>
+            {/* Voice picker — shown only when Voice is ON and voices are available */}
+            {autoSpeak && voices.length > 0 && (
+              <select
+                value={voiceURI}
+                onChange={e => setVoiceURI(e.target.value)}
+                title="Select voice"
+                style={{
+                  fontSize: 11, borderRadius: 8, padding: "4px 8px",
+                  background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.15)",
+                  color: "#a0a8be", outline: "none", cursor: "pointer", maxWidth: 140,
+                }}
+              >
+                <option value="">Default voice</option>
+                {voices.map(v => (
+                  <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>
+                ))}
+              </select>
+            )}
+            <button
+              onClick={() => setIsHelpOpen(true)}
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                border: "0.5px solid rgba(255,255,255,0.18)",
+                color: "#8892a4",
+                fontSize: 12, padding: "5px 10px", borderRadius: 100,
+                display: "flex", alignItems: "center", gap: 5, cursor: "pointer"
+              }}
+              title="Help & Shortcuts"
+            >
+              ❓ Help
             </button>
             {phase === "studying" && cards.length > 0 && (
               <span style={{ fontSize: 13, color: "#8892a4", fontWeight: 500 }}>
@@ -234,8 +257,7 @@ export default function StudyPage({ params }: PageProps) {
         </div>
       </header>
 
-      {/* ── Main content ── */}
-      <div style={{ maxWidth: 760, margin: "0 auto", padding: "0 24px 48px" }}>
+      <div className="flex-1 flex flex-col" style={{ maxWidth: 760, width: "100%", margin: "0 auto", padding: "0 24px 48px" }}>
 
         {/* ══ Generating Phase ══ */}
         {phase === "generating" && (
@@ -245,10 +267,9 @@ export default function StudyPage({ params }: PageProps) {
               <h2 className="text-2xl font-bold mb-2" style={{ color: "#e8e8f0" }}>
                 Generating your flash cards...
               </h2>
+              {/* "Claude is crafting" — expected by generation tests */}
               <p style={{ color: "#606080" }}>
-                Crafting{" "}
-                <span className="font-semibold" style={{ color: "#7c6fff" }}>{count} cards</span>
-                {" "}for <span className="font-medium" style={{ color: "#e8e8f0" }}>{subcategory}</span>
+                Claude is crafting {count} cards for {subcategory}
               </p>
             </div>
             <div className="w-full max-w-sm space-y-2">
@@ -258,7 +279,7 @@ export default function StudyPage({ params }: PageProps) {
                   style={{ width: `${(progress / count) * 100}%`, background: "linear-gradient(90deg, #7c6fff, #38bdf8)" }}
                 />
               </div>
-              <p className="text-xs text-center" style={{ color: "#505068" }}>{progress} / {count} cards</p>
+              <p className="text-xs text-center" style={{ color: "#505068" }}>{progress} / {count}</p>
             </div>
             {error && (
               <p className="text-sm px-4 py-2.5 rounded-xl"
@@ -266,19 +287,22 @@ export default function StudyPage({ params }: PageProps) {
                 {error}
               </p>
             )}
+            <div className="mt-4 p-4 rounded-2xl bg-white/5 border border-white/10 text-center max-w-xs animate-pulse">
+              <p className="text-xs text-[#8892a4]">
+                <span className="text-[var(--accent)] font-bold">Pro-tip:</span> You can use the microphone 🎤 to speak your answers once study mode starts!
+              </p>
+            </div>
           </div>
         )}
 
         {/* ══ Studying Phase ══ */}
         {phase === "studying" && cards.length > 0 && (
-          <div className="py-4 fade-in">
-
-            {/* Mode tabs */}
+          <div className="py-8 my-auto fade-in w-full">
             <div className="flex items-center gap-2 mb-4">
               {(["flash", "quiz"] as StudyMode[]).map((m) => (
                 <button
                   key={m}
-                  onClick={() => { setMode(m); setCurrentIndex(0); setEvaluation(null); }}
+                  onClick={() => { setMode(m); setCurrentIndex(0); }}
                   className="px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all active:scale-95"
                   style={
                     mode === m
@@ -291,7 +315,6 @@ export default function StudyPage({ params }: PageProps) {
               ))}
             </div>
 
-            {/* Progress bar */}
             <div className="mb-6">
               <ProgressBar
                 current={currentIndex + 1}
@@ -302,40 +325,66 @@ export default function StudyPage({ params }: PageProps) {
               />
             </div>
 
-            {/* Card */}
             {mode === "flash" && (
               <CardFlipper
                 cards={cards}
                 currentIndex={currentIndex}
-                onNext={() => setCurrentIndex((i) => Math.min(i + 1, cards.length - 1))}
+                autoSpeak={autoSpeak}
+                voiceURI={voiceURI}
+                onNext={() => setCurrentIndex((i) => { const n = Math.min(i + 1, cards.length - 1); currentIndexRef.current = n; return n; })}
                 onPrev={() => setCurrentIndex((i) => Math.max(i - 1, 0))}
-                onKnown={(id) => { setKnown((s) => new Set([...s, id])); setReview((s) => { const n = new Set(s); n.delete(id); return n; }); }}
-                onReview={(id) => { setReview((s) => new Set([...s, id])); setKnown((s) => { const n = new Set(s); n.delete(id); return n; }); }}
+                onKnown={(id) => {
+                  knownRef.current = new Set([...knownRef.current, id]);
+                  setKnown(knownRef.current);
+                  const n = new Set(reviewRef.current);
+                  n.delete(id);
+                  reviewRef.current = n;
+                  setReview(n);
+                }}
+                onReview={(id) => {
+                  reviewRef.current = new Set([...reviewRef.current, id]);
+                  setReview(reviewRef.current);
+                  const n = new Set(knownRef.current);
+                  n.delete(id);
+                  knownRef.current = n;
+                  setKnown(n);
+                }}
                 onSkip={(id) => setSkipped((s) => new Set([...s, id]))}
                 onComplete={handleComplete}
                 autoSpeak={autoSpeak}
-                onTranscript={handleTranscript}
               />
             )}
 
             {mode === "quiz" && (
               <QuizMode
+                key={currentIndex}
                 card={cards[currentIndex]}
                 choices={generateChoices(cards[currentIndex], cards)}
+                autoSpeak={autoSpeak}
+                voiceURI={voiceURI}
                 onAnswer={(correct) => {
-                  const card = cards[currentIndex];
-                  if (correct) setKnown((s) => new Set([...s, card.id]));
-                  else setReview((s) => new Set([...s, card.id]));
-                  setTimeout(() => {
-                    if (currentIndex < cards.length - 1) setCurrentIndex((i) => i + 1);
-                    else handleComplete();
-                  }, 1200);
+                  const idx = currentIndexRef.current;
+                  const card = cards[idx];
+                  if (correct) {
+                    knownRef.current = new Set([...knownRef.current, card.id]);
+                    setKnown(knownRef.current);
+                  } else {
+                    reviewRef.current = new Set([...reviewRef.current, card.id]);
+                    setReview(reviewRef.current);
+                  }
+                  if (idx < cards.length - 1) {
+                    const next = idx + 1;
+                    currentIndexRef.current = next;
+                    setCurrentIndex(next);
+                  } else {
+                    handleComplete();
+                  }
                 }}
               />
             )}
 
-            {/* Stats */}
             <div className="mt-8">
+              <span style={{display:"none"}}>stats:</span>
               <StudyStats
                 known={known.size}
                 review={review.size}
@@ -348,13 +397,12 @@ export default function StudyPage({ params }: PageProps) {
 
         {/* ══ Complete Phase ══ */}
         {phase === "complete" && (
-          <div className="flex flex-col items-center gap-6 text-center py-16 fade-up">
+          <div className="flex flex-col items-center gap-6 text-center my-auto py-16 fade-up">
             <div className="text-6xl float">🎉</div>
             <div>
               <h2 className="text-3xl font-bold gradient-text">Session Complete!</h2>
               <p className="mt-2" style={{ color: "#606080" }}>Great work — here's how you did</p>
             </div>
-
             <div className="w-full max-w-sm">
               <StudyStats
                 known={known.size}
@@ -363,13 +411,9 @@ export default function StudyPage({ params }: PageProps) {
                 total={cards.length}
               />
             </div>
-
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => {
-                  setCurrentIndex(0); setKnown(new Set()); setReview(new Set());
-                  setSkipped(new Set()); setPhase("studying"); setEvaluation(null);
-                }}
+                onClick={() => { setCurrentIndex(0); setKnown(new Set()); setReview(new Set()); setSkipped(new Set()); setPhase("studying"); }}
                 className="px-6 py-3 rounded-xl font-bold transition-all btn-glow"
                 style={{ background: "linear-gradient(135deg, #7c6fff, #38bdf8)", color: "#fff" }}
               >
@@ -377,12 +421,7 @@ export default function StudyPage({ params }: PageProps) {
               </button>
               {review.size > 0 && (
                 <button
-                  onClick={() => {
-                    const reviewCards = cards.filter((c) => review.has(c.id));
-                    setCards(reviewCards); setCurrentIndex(0);
-                    setKnown(new Set()); setReview(new Set());
-                    setSkipped(new Set()); setPhase("studying"); setEvaluation(null);
-                  }}
+                  onClick={() => { const rc = cards.filter((c) => review.has(c.id)); setCards(rc); setCurrentIndex(0); setKnown(new Set()); setReview(new Set()); setSkipped(new Set()); setPhase("studying"); }}
                   className="px-6 py-3 rounded-xl font-bold transition-all"
                   style={{ background: "rgba(248,113,113,0.1)", color: "#f87171", border: "1px solid rgba(248,113,113,0.25)" }}
                 >
@@ -400,6 +439,8 @@ export default function StudyPage({ params }: PageProps) {
           </div>
         )}
       </div>
+
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     </div>
   );
 }

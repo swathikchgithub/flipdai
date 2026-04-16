@@ -16,7 +16,7 @@ test.describe("History Page — empty state", () => {
   });
 
   test("shows zero cards studied", async ({ page }) => {
-    await expect(page.getByText("0")).toBeVisible();
+    await expect(page.locator(".gradient-text")).toHaveText("0");
   });
 
   test("shows 0% avg score", async ({ page }) => {

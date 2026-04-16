@@ -1,27 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TOPICS } from "@/config/topics";
+import { v4 as uuidv4 } from "uuid";
 
 interface TopicPickerProps {
   selectedModel: string;
 }
 
 const THEME: Record<string, { color: string }> = {
-  "job-interviews":  { color: "#5b9cf6" },
-  "sat-prep":        { color: "#8b6fe0" },
-  "ap-exams":        { color: "#d9943a" },
-  "certifications":  { color: "#2ab888" },
-  "languages":       { color: "#c44f78" },
-  "sciences":        { color: "#58a828" },
-  "tech-topics":     { color: "#c85c35" },
-  "custom":          { color: "#5b9cf6" },
+  "job-interviews": { color: "#5b9cf6" },
+  "sat-prep":       { color: "#8b6fe0" },
+  "ap-exams":       { color: "#d9943a" },
+  "certifications": { color: "#2ab888" },
+  "languages":      { color: "#c44f78" },
+  "sciences":       { color: "#58a828" },
+  "tech-topics":    { color: "#c85c35" },
+  "custom":         { color: "#5b9cf6" },
 };
 
 const ICONS: Record<string, React.ReactNode> = {
   "job-interviews": (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M2 12h20"/>
+      <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 12h20"/>
     </svg>
   ),
   "sat-prep": (
@@ -41,7 +43,8 @@ const ICONS: Record<string, React.ReactNode> = {
   ),
   "languages": (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
     </svg>
   ),
   "sciences": (
@@ -68,15 +71,44 @@ function hexAlpha(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+const COUNT_OPTIONS = [
+  { value: 5,  label: "5",  sub: "Quick" },
+  { value: 10, label: "10", sub: "Standard" },
+  { value: 25, label: "25", sub: "Deep dive" },
+  { value: 50, label: "50", sub: "Marathon" },
+];
+
 export default function TopicPicker({ selectedModel }: TopicPickerProps) {
   const router = useRouter();
+  const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const [cardCount, setCardCount] = useState(10);
+  const [customText, setCustomText] = useState("");
 
-  // Separate custom from regular topics
-  const regularTopics = TOPICS.filter(t => t.id !== "custom");
-  const customTopic = TOPICS.find(t => t.id === "custom");
+  const topic = TOPICS.find(t => t.id === selectedTopic);
+  const isCustom = selectedTopic === "custom";
+  const canGenerate = selectedTopic && (isCustom ? customText.trim().length > 0 : !!selectedSub);
+
+  const handleGenerate = () => {
+    if (!canGenerate) return;
+    const sid = uuidv4();
+    const sub = isCustom ? customText.trim() : selectedSub!;
+    router.push(`/study/${sid}?topic=${selectedTopic}&sub=${encodeURIComponent(sub)}&count=${cardCount}&model=${encodeURIComponent(selectedModel)}`);
+  };
+
+  const handleTopicClick = (id: string) => {
+    if (selectedTopic === id) {
+      setSelectedTopic(null);
+      setSelectedSub(null);
+    } else {
+      setSelectedTopic(id);
+      setSelectedSub(null);
+      setCustomText("");
+    }
+  };
 
   return (
-    <>
+    <div>
       {/* Section label */}
       <div style={{
         fontSize: 11, fontWeight: 500, letterSpacing: "0.08em",
@@ -86,26 +118,28 @@ export default function TopicPicker({ selectedModel }: TopicPickerProps) {
         Choose a Category
       </div>
 
-      {/* Grid */}
+      {/* Topic grid */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(3, 1fr)",
         gap: 10,
-        marginBottom: 10,
+        marginBottom: selectedTopic ? 16 : 0,
       }}>
-        {regularTopics.map((t) => {
+        {TOPICS.map((t) => {
           const th = THEME[t.id] || THEME["custom"];
-          const isWide = t.id === "tech-topics";
+          const isSelected = selectedTopic === t.id;
           return (
             <button
               key={t.id}
-              onClick={() => router.push(`/topic/${t.id}?model=${encodeURIComponent(selectedModel)}`)}
+              onClick={() => handleTopicClick(t.id)}
               data-testid={`topic-${t.id}`}
+              aria-label={t.id === "custom" ? "Custom Topic" : t.label}
               style={{
-                gridColumn: isWide ? "span 2" : undefined,
                 position: "relative",
-                background: "rgba(255,255,255,0.038)",
-                border: "0.5px solid rgba(255,255,255,0.075)",
+                background: isSelected ? hexAlpha(th.color, 0.08) : "rgba(255,255,255,0.038)",
+                border: isSelected
+                  ? `0.5px solid ${hexAlpha(th.color, 0.5)}`
+                  : "0.5px solid rgba(255,255,255,0.075)",
                 borderRadius: 14,
                 overflow: "hidden",
                 cursor: "pointer",
@@ -114,152 +148,161 @@ export default function TopicPicker({ selectedModel }: TopicPickerProps) {
                 textAlign: "left",
                 transition: "background 0.15s, border-color 0.15s, transform 0.12s",
               }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.065)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.13)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-                const arrow = e.currentTarget.querySelector<HTMLElement>(".cat-arrow");
-                if (arrow) arrow.style.color = "#6870a0";
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.038)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.075)";
-                e.currentTarget.style.transform = "none";
-                const arrow = e.currentTarget.querySelector<HTMLElement>(".cat-arrow");
-                if (arrow) arrow.style.color = "#383c47";
-              }}
             >
               {/* Accent bar */}
               <div style={{
                 position: "absolute", top: 0, left: 0, right: 0,
-                height: 2, background: th.color, opacity: 0.75,
+                height: 2, background: th.color, opacity: isSelected ? 1 : 0.75,
                 borderRadius: "14px 14px 0 0",
               }} />
 
               {/* Icon */}
               <div style={{
                 width: 34, height: 34, borderRadius: 8,
-                background: hexAlpha(th.color, 0.13),
-                color: th.color,
+                background: hexAlpha(th.color, 0.13), color: th.color,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 marginBottom: 12, flexShrink: 0,
               }}>
                 {ICONS[t.id]}
               </div>
 
-              {/* Title */}
               <div style={{ fontSize: 14, fontWeight: 500, color: "#dde0ea", marginBottom: 3 }}>
-                {t.label}
+                {t.id === "custom" ? "Custom Topic" : t.label}
               </div>
-
-              {/* Desc */}
               <div style={{ fontSize: 12, color: "#565a66", lineHeight: 1.45, flex: 1, marginBottom: 14 }}>
                 {t.desc}
               </div>
-
-              {/* Footer */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{
                   fontSize: 11, fontWeight: 500, padding: "3px 9px", borderRadius: 6,
                   background: hexAlpha(th.color, 0.12), color: th.color,
                 }}>
-                  {t.subcategories.length} subtopics
+                  {t.id === "custom" ? "Any topic" : `${t.subcategories.length} subtopics`}
                 </span>
-                <span className="cat-arrow" style={{ fontSize: 14, color: "#383c47", transition: "color 0.15s" }}>→</span>
+                <span style={{ fontSize: 14, color: isSelected ? th.color : "#383c47" }}>
+                  {isSelected ? "✓" : "→"}
+                </span>
               </div>
             </button>
           );
         })}
+      </div>
 
-        {/* Custom topic card — full width */}
-        {customTopic && (
-          <div
-            data-testid="topic-custom"
-            style={{
-              gridColumn: "1 / -1",
-              position: "relative",
-              background: "rgba(255,255,255,0.038)",
-              border: "0.5px solid rgba(255,255,255,0.075)",
-              borderRadius: 14,
-              overflow: "hidden",
-              transition: "border-color 0.15s",
-            }}
-          >
-            {/* Accent bar */}
-            <div style={{
-              position: "absolute", top: 0, left: 0, right: 0,
-              height: 2, background: "#5b9cf6", opacity: 0.75,
-              borderRadius: "14px 14px 0 0",
-            }} />
+      {/* ── Subcategory + Generate section ── */}
+      {selectedTopic && (
+        <div style={{
+          background: "rgba(255,255,255,0.025)",
+          border: "0.5px solid rgba(255,255,255,0.08)",
+          borderRadius: 14, padding: "20px 22px",
+          marginBottom: 0,
+          animation: "fadeIn 0.2s ease-out",
+        }}>
 
-            <div style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-              {/* Icon */}
-              <div style={{
-                width: 34, height: 34, borderRadius: 8,
-                background: "rgba(91,156,246,0.13)", color: "#5b9cf6",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                {ICONS["custom"]}
+          {isCustom ? (
+            /* Custom topic input */
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.07em", color: "#484848", textTransform: "uppercase", marginBottom: 12 }}>
+                Your Topic
               </div>
-
-              {/* Input */}
               <input
                 type="text"
-                placeholder="Any topic — e.g. Byzantine history, React hooks, options trading…"
-                data-testid="custom-topic-input"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const val = (e.target as HTMLInputElement).value.trim();
-                    if (val) router.push(`/topic/custom?model=${encodeURIComponent(selectedModel)}&prefill=${encodeURIComponent(val)}`);
-                  }
-                }}
+                value={customText}
+                onChange={e => setCustomText(e.target.value)}
+                placeholder="Enter any topic — e.g. Byzantine history, React hooks, options trading…"
+                onKeyDown={e => { if (e.key === "Enter" && canGenerate) handleGenerate(); }}
                 style={{
-                  flex: 1,
+                  width: "100%",
                   background: "rgba(255,255,255,0.04)",
-                  border: "0.5px solid rgba(255,255,255,0.09)",
-                  borderRadius: 9,
-                  padding: "9px 14px",
+                  border: "0.5px solid rgba(255,255,255,0.12)",
+                  borderRadius: 9, padding: "10px 14px",
                   fontSize: 13, color: "#c0c4d0",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  transition: "border-color 0.15s, background 0.15s",
+                  fontFamily: "inherit", outline: "none",
+                  marginBottom: 16,
                 }}
-                onFocus={e => {
-                  e.currentTarget.style.borderColor = "rgba(91,156,246,0.45)";
-                  e.currentTarget.style.background = "rgba(91,156,246,0.04)";
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                }}
+                onFocus={e => (e.currentTarget.style.borderColor = "rgba(91,156,246,0.45)")}
+                onBlur={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)")}
               />
-
-              {/* Generate button */}
-              <button
-                onClick={(e) => {
-                  const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
-                  const val = input?.value.trim();
-                  if (val) router.push(`/topic/custom?model=${encodeURIComponent(selectedModel)}&prefill=${encodeURIComponent(val)}`);
-                  else input?.focus();
-                }}
-                style={{
-                  background: "#5b9cf6", color: "#fff",
-                  borderRadius: 9, padding: "9px 18px",
-                  fontSize: 13, fontWeight: 500,
-                  cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
-                  border: "none", fontFamily: "inherit",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#4a8ce0")}
-                onMouseLeave={e => (e.currentTarget.style.background = "#5b9cf6")}
-              >
-                Generate →
-              </button>
             </div>
+          ) : (
+            /* Subcategory pills */
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.07em", color: "#484848", textTransform: "uppercase", marginBottom: 12 }}>
+                Subcategory
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                {topic?.subcategories.map(sub => {
+                  const th = THEME[selectedTopic] || THEME["custom"];
+                  const isActive = selectedSub === sub;
+                  return (
+                    <button
+                      key={sub}
+                      onClick={() => setSelectedSub(isActive ? null : sub)}
+                      aria-label={sub}
+                      style={{
+                        padding: "7px 16px", borderRadius: 100, fontSize: 13,
+                        fontWeight: isActive ? 500 : 400,
+                        background: isActive ? hexAlpha(th.color, 0.15) : "rgba(255,255,255,0.05)",
+                        border: isActive ? `0.5px solid ${hexAlpha(th.color, 0.45)}` : "0.5px solid rgba(255,255,255,0.1)",
+                        color: isActive ? th.color : "#8892a4",
+                        cursor: "pointer", transition: "all 0.15s",
+                      }}
+                    >
+                      {isActive ? "✓ " : ""}{sub}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Card count selector */}
+          <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.07em", color: "#484848", textTransform: "uppercase", marginBottom: 10 }}>
+            Number of Cards
           </div>
-        )}
-      </div>
-    </>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18 }}>
+            {COUNT_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setCardCount(opt.value)}
+                aria-label={String(opt.value)}
+                style={{
+                  padding: "12px 8px", borderRadius: 10, textAlign: "center",
+                  background: cardCount === opt.value ? "rgba(91,156,246,0.12)" : "rgba(255,255,255,0.04)",
+                  border: cardCount === opt.value ? "0.5px solid rgba(91,156,246,0.4)" : "0.5px solid rgba(255,255,255,0.08)",
+                  cursor: "pointer", transition: "all 0.15s",
+                }}
+              >
+                <div style={{ fontSize: 18, fontWeight: 600, color: cardCount === opt.value ? "#5b9cf6" : "#9098a8" }}>
+                  {opt.label}
+                </div>
+                <div aria-hidden="true" style={{ fontSize: 10, color: cardCount === opt.value ? "#5b9cf6" : "#454a56", marginTop: 2 }}>
+                  {opt.sub}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Generate button */}
+          <button
+            onClick={handleGenerate}
+            aria-label={canGenerate ? `Generate ${cardCount} Flash Cards` : "Generate Flash Cards"}
+            disabled={!canGenerate}
+            style={{
+              width: "100%", padding: "13px 24px",
+              borderRadius: 11, fontSize: 14, fontWeight: 600,
+              background: canGenerate ? "#5b9cf6" : "rgba(255,255,255,0.05)",
+              color: canGenerate ? "#fff" : "#454a56",
+              border: canGenerate ? "none" : "0.5px solid rgba(255,255,255,0.08)",
+              cursor: canGenerate ? "pointer" : "not-allowed",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { if (canGenerate) e.currentTarget.style.background = "#4a8ce0"; }}
+            onMouseLeave={e => { if (canGenerate) e.currentTarget.style.background = "#5b9cf6"; }}
+          >
+{canGenerate ? `Generate ${cardCount} Flash Cards →` : "Generate Flash Cards →"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -73,7 +73,7 @@ test.describe("Card Generation", () => {
     await mockGenerate(page, MOCK_CARDS);
     await page.goto(SESSION_URL());
     await expect(page.getByText("Tech Topics")).toBeVisible();
-    await expect(page.getByText("React")).toBeVisible();
+    await expect(page.getByText("React", { exact: true }).first()).toBeVisible();
   });
 
   test("Home link in header navigates back", async ({ page }) => {

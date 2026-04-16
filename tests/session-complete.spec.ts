@@ -6,6 +6,7 @@ import { MOCK_CARDS } from "./fixtures/cards";
 async function completeAllCards(page: any) {
   for (let i = 0; i < MOCK_CARDS.length; i++) {
     await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(100);
   }
   await page.waitForSelector("text=Session Complete", { timeout: 5000 });
 }
@@ -16,6 +17,7 @@ async function completeWithMarks(page: any, marks: ("known" | "review" | "skip")
     if (mark === "known") await page.keyboard.press("1");
     else if (mark === "review") await page.keyboard.press("2");
     else await page.getByRole("button", { name: /Skip/ }).click();
+    await page.waitForTimeout(100);
   }
   await page.waitForSelector("text=Session Complete", { timeout: 5000 });
 }
@@ -44,8 +46,8 @@ test.describe("Session Complete Screen", () => {
     await page.keyboard.press("ArrowRight"); // complete
     await page.waitForSelector("text=Session Complete", { timeout: 5000 });
     // Stats should show the counts
-    await expect(page.getByText("1")).toBeVisible(); // 1 known
-    await expect(page.getByText("2")).toBeVisible(); // 2 review
+    await expect(page.getByText(/1 Known/i)).toBeVisible(); // 1 known
+    await expect(page.getByText(/2 Review/i)).toBeVisible(); // 2 review
   });
 
   test("Study Again button restarts the session", async ({ page }) => {
@@ -82,7 +84,7 @@ test.describe("Session Complete Screen", () => {
     await page.getByRole("button", { name: /Review Cards/ }).click();
     // Should now be studying just card 1
     await expect(page.getByText(MOCK_CARDS[0].front)).toBeVisible();
-    await expect(page.getByText(/1\s*\/\s*1/)).toBeVisible();
+    await expect(page.getByText(/1\s*\/\s*1/).first()).toBeVisible();
   });
 
   test("New Topic link navigates to home", async ({ page }) => {
@@ -103,10 +105,11 @@ test.describe("Session Complete Screen", () => {
     // Mark all 5 as known
     for (let i = 0; i < MOCK_CARDS.length; i++) {
       await page.keyboard.press("1");
+      await page.waitForTimeout(100);
     }
     await page.waitForSelector("text=Session Complete", { timeout: 5000 });
     await page.goto("/history");
     // Score should be 100%
-    await expect(page.getByText("100%")).toBeVisible();
+    await expect(page.getByText("100%").first()).toBeVisible();
   });
 });
