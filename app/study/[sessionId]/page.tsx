@@ -351,7 +351,6 @@ export default function StudyPage({ params }: PageProps) {
                 }}
                 onSkip={(id) => setSkipped((s) => new Set([...s, id]))}
                 onComplete={handleComplete}
-                autoSpeak={autoSpeak}
               />
             )}
 
