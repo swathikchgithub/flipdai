@@ -197,7 +197,7 @@ export default function Home() {
           marginTop: 64, textAlign: "center", borderTop: "0.5px solid rgba(255,255,255,0.06)",
           paddingTop: 32, paddingBottom: 24
         }}>
-          <p style={{ fontSize: 13, color: "#606080", display: "flex", items: "center", justifyContent: "center", gap: 6 }}>
+          <p style={{ fontSize: 13, color: "#606080", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
             Powered by 
             <a 
               href="https://antigravity.google/" 
