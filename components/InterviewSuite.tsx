@@ -18,7 +18,6 @@ export default function InterviewSuite({ topic, subcategory, model }: InterviewS
   const {
     messages,
     isLoading,
-    isReady,
     isListening,
     input,
     error,
