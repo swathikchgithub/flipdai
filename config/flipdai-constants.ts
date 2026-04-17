@@ -36,7 +36,7 @@ export const FLIPDAI_MODELS: ModelConfig[] = [
   { value: "google/gemma-4-26b-a4b-it", label: "Gemma 4 26B MoE", provider: "OpenRouter", badge: "🔷", color: "#ec4899", desc: "MoE efficient" },
 ];
 
-export const DEFAULT_MODEL = "openai/gpt-oss-120b:free";
+export const DEFAULT_MODEL = "deepseek/deepseek-chat";
 
 export const PROVIDER_COLORS: Record<string, string> = {
   OpenAI: "#10b981",

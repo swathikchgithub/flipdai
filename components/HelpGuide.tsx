@@ -3,21 +3,22 @@
 import React, { useState } from "react";
 
 export default function HelpGuide() {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(false);
 
   if (!isVisible) {
     return (
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-center mb-6">
         <button
           onClick={() => setIsVisible(true)}
-          className="text-xs font-medium px-4 py-2 rounded-xl transition-all hover:bg-white/10"
+          className="text-xs font-medium px-5 py-2.5 rounded-2xl transition-all hover:bg-white/10 flex items-center gap-2"
           style={{ 
             background: "rgba(255,255,255,0.03)", 
             border: "0.5px solid rgba(255,255,255,0.12)",
             color: "#8892a4"
           }}
         >
-          ❓ How to use
+          <span>✨</span>
+          <span>How to use FlipDAI</span>
         </button>
       </div>
     );
@@ -43,73 +44,83 @@ export default function HelpGuide() {
             className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all hover:bg-white/5"
             style={{ color: "#606080" }}
           >
-            ✕ Got it
+            ✕ Close Guide
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {/* Step 1 */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold" 
+              <span className="flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold" 
                     style={{ background: "rgba(124, 111, 255, 0.15)", color: "#7c6fff", border: "1px solid rgba(124, 111, 255, 0.3)" }}>
                 1
               </span>
-              <span className="text-base font-bold text-white">🎯 Pick a Topic</span>
+              <span className="text-sm font-bold text-white uppercase tracking-wider">Topics</span>
             </div>
-            <p className="text-sm leading-relaxed text-[#8892a4]">
-              Select from curated categories or enter a custom topic. AI will craft a personalized deck in seconds.
+            <p className="text-xs leading-relaxed text-[#8892a4]">
+              Select a category or enter a custom topic. AI will craft a personalized session in seconds.
             </p>
           </div>
 
           {/* Step 2 */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold" 
+              <span className="flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold" 
                     style={{ background: "rgba(56, 189, 248, 0.15)", color: "#38bdf8", border: "1px solid rgba(56, 189, 248, 0.3)" }}>
                 2
               </span>
-              <span className="text-base font-bold text-white">🎙️ Set Preferences</span>
+              <span className="text-sm font-bold text-white uppercase tracking-wider">Modes</span>
             </div>
-            <p className="text-sm leading-relaxed text-[#8892a4]">
-              Choose between Flashcards or Quiz mode. Toggle <span className="text-white">Voice ON</span> to hear cards read aloud.
+            <p className="text-xs leading-relaxed text-[#8892a4]">
+              Switch between <strong>Flashcards</strong> for memorization or <strong>Mock Interview</strong> for career practice.
             </p>
           </div>
 
           {/* Step 3 */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold" 
+              <span className="flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold" 
                     style={{ background: "rgba(42, 184, 136, 0.15)", color: "#2ab888", border: "1px solid rgba(42, 184, 136, 0.3)" }}>
                 3
               </span>
-              <span className="text-base font-bold text-white">⌨️ Interaction</span>
+              <span className="text-sm font-bold text-white uppercase tracking-wider">Audio</span>
             </div>
-            <p className="text-sm leading-relaxed text-[#8892a4]">
-              Click cards or use <kbd className="guide-kbd">Space</kbd> to flip. Use the <span className="text-white">Mic 🎤</span> to speak your answers for AI feedback.
+            <p className="text-xs leading-relaxed text-[#8892a4]">
+              Enable <strong>Voice Mode</strong> to talk to the AI. <span className="text-white">Pro-tip:</span> Test your mic and speakers in the setup screen first!
             </p>
           </div>
 
           {/* Step 4 */}
           <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold" 
+              <span className="flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold" 
                     style={{ background: "rgba(139, 111, 224, 0.15)", color: "#8b6fe0", border: "1px solid rgba(139, 111, 224, 0.3)" }}>
                 4
               </span>
-              <span className="text-base font-bold text-white">📈 Track Mastery</span>
+              <span className="text-sm font-bold text-white uppercase tracking-wider">Controls</span>
             </div>
-            <p className="text-sm leading-relaxed text-[#8892a4]">
-              Rate items you know or need to review. Check your progress in history to see your scores improve over time.
+            <p className="text-xs leading-relaxed text-[#8892a4]">
+              Click cards or use <kbd className="guide-kbd">Space</kbd> to flip. Use the <span className="text-white">Mic 🎤</span> toggle to speak your answers naturally.
+            </p>
+          </div>
+
+          {/* Step 5 */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-7 h-7 rounded-full text-[10px] font-bold" 
+                    style={{ background: "rgba(249, 115, 22, 0.15)", color: "#f97316", border: "1px solid rgba(249, 115, 22, 0.3)" }}>
+                5
+              </span>
+              <span className="text-sm font-bold text-white uppercase tracking-wider">History</span>
+            </div>
+            <p className="text-xs leading-relaxed text-[#8892a4]">
+              Track your scores in History. Re-run sessions to master topics you missed before.
             </p>
           </div>
         </div>
 
-        <div className="mt-12 flex justify-between items-center border-t border-white/5 pt-6">
-          <div className="flex items-center gap-2 text-xs text-[#565a6a]">
-            <span className="flex w-1.5 h-1.5 rounded-full bg-[#f87171]" />
-            💡 Switch to Quiz Mode for multiple choice practice
-          </div>
+        <div className="mt-10 flex justify-end items-center border-t border-white/5 pt-6">
           <button 
             onClick={() => setIsVisible(false)}
             className="px-6 py-2.5 rounded-xl font-bold transition-all btn-glow"
@@ -119,6 +130,7 @@ export default function HelpGuide() {
           </button>
         </div>
       </div>
+
 
       <style jsx>{`
         .guide-kbd {

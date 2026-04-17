@@ -267,9 +267,8 @@ export default function StudyPage({ params }: PageProps) {
               <h2 className="text-2xl font-bold mb-2" style={{ color: "#e8e8f0" }}>
                 Generating your flash cards...
               </h2>
-              {/* "Claude is crafting" — expected by generation tests */}
               <p style={{ color: "#606080" }}>
-                Claude is crafting {count} cards for {subcategory}
+                AI is crafting {count} cards for {subcategory}
               </p>
             </div>
             <div className="w-full max-w-sm space-y-2">

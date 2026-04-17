@@ -9,6 +9,7 @@ import HelpGuide from "@/components/HelpGuide";
 export default function Home() {
   const [selectedModel, setSelectedModel] = useState(DEFAULT_MODEL);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [appMode, setAppMode] = useState<"study" | "interview">("study");
 
   const modelInfo = FLIPDAI_MODELS.find((m) => m.value === selectedModel);
 
@@ -151,11 +152,51 @@ export default function Home() {
           ))}
         </div>
 
+        {/* ── Mode Toggle ── */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
+          <div style={{
+            background: "rgba(255,255,255,0.03)",
+            border: "0.5px solid rgba(255,255,255,0.08)",
+            padding: 4, borderRadius: 100, display: "flex", gap: 4
+          }}>
+            <button
+              onClick={() => setAppMode("study")}
+              style={{
+                padding: "8px 24px", borderRadius: 100, fontSize: 13, fontWeight: 500,
+                background: appMode === "study" ? "#5b9cf6" : "transparent",
+                color: appMode === "study" ? "#fff" : "#8892a4",
+                border: "none", cursor: "pointer", transition: "all 0.2s"
+              }}
+            >
+              Flashcards
+            </button>
+            <button
+              onClick={() => setAppMode("interview")}
+              style={{
+                padding: "8px 24px", borderRadius: 100, fontSize: 13, fontWeight: 500,
+                background: appMode === "interview" ? "#5b9cf6" : "transparent",
+                color: appMode === "interview" ? "#fff" : "#8892a4",
+                border: "none", cursor: "pointer", transition: "all 0.2s",
+                display: "flex", alignItems: "center", gap: 6
+              }}
+            >
+              Mock Interview
+              <span style={{
+                fontSize: 8, padding: "1px 6px", borderRadius: 100,
+                background: appMode === "interview" ? "rgba(255,255,255,0.2)" : "rgba(139, 111, 224, 0.15)",
+                border: appMode === "interview" ? "0.5px solid rgba(255,255,255,0.3)" : "0.5px solid rgba(139, 111, 224, 0.3)",
+                color: appMode === "interview" ? "#fff" : "#8b6fe0", 
+                fontWeight: 900, letterSpacing: "0.05em"
+              }}>PILOT</span>
+            </button>
+          </div>
+        </div>
+
         {/* ── Help Guide ── */}
         <HelpGuide />
 
         {/* ── Category grid ── */}
-        <TopicPicker selectedModel={selectedModel} />
+        <TopicPicker selectedModel={selectedModel} mode={appMode} />
 
         {/* ── Feature strip ── */}
         <div style={{
@@ -164,7 +205,7 @@ export default function Home() {
         }}>
           {[
             {
-              title: "AI Powered", sub: "GPT-4o, Claude, Gemini",
+              title: "AI Powered", sub: "GPT-4o, Llama, Gemini",
               svg: <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1" fill="#555" stroke="none"/></svg>,
             },
             {
@@ -206,19 +247,10 @@ export default function Home() {
               style={{ color: "#7c6fff", textDecoration: "none", fontWeight: 600 }}
             >
               Antigravity
-            </a> 
-            & 
-            <a 
-              href="https://claude.ai" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{ color: "#d97757", textDecoration: "none", fontWeight: 600 }}
-            >
-              Claude
             </a>
           </p>
           <div style={{ marginTop: 12, fontSize: 11, color: "#444" }}>
-            © {new Date().getFullYear()} FlipDAI • Built with ❤️ by Swathik CH
+            © {new Date().getFullYear()} • Built with ❤️ by Swathi Kumar Chadalavada
           </div>
         </footer>
       </div>

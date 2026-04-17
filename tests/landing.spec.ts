@@ -16,7 +16,7 @@ test.describe("Landing Page", () => {
     await expect(page.getByText("AI Flash Cards")).toBeVisible();
   });
 
-  test("shows Powered by Claude AI badge", async ({ page }) => {
+  test("shows Powered by AI badge", async ({ page }) => {
     await expect(page.getByText("8 AI Models")).toBeVisible();
   });
 

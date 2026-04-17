@@ -1,16 +1,43 @@
 export function speakText(text: string, rate = 1.0, voiceURI?: string, onEnd?: () => void): void {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = rate;
-  utterance.lang = "en-US";
-  if (voiceURI) {
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find((v) => v.voiceURI === voiceURI);
-    if (voice) utterance.voice = voice;
+  const DEBUG = true; 
+  if (DEBUG) console.log("🔊 [VOICE-UTILS] speakText called.");
+
+  if (typeof window === "undefined" || !window.speechSynthesis) {
+    return;
   }
-  if (onEnd) utterance.onend = onEnd;
-  window.speechSynthesis.speak(utterance);
+  
+  // CLEAR THE DECK: Stop any previous speaking to prevent conflicts
+  window.speechSynthesis.cancel();
+
+  // SMALL DELAY: Give the hardware a moment to reset
+  setTimeout(() => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = rate;
+    utterance.lang = "en-US";
+
+    if (voiceURI) {
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find((v) => v.voiceURI === voiceURI);
+      if (voice) utterance.voice = voice;
+    }
+
+    utterance.onstart = () => {
+      if (DEBUG) console.log("🔊 [VOICE-UTILS] Started.");
+    };
+
+    utterance.onend = () => {
+      if (onEnd) onEnd();
+    };
+
+    utterance.onerror = (e: any) => {
+      // Ignore 'interrupted' errors as they are expected when skipping cards
+      if (e.error === "interrupted") return;
+      console.warn("🔊 [VOICE-UTILS] Voice engine busy or error:", e.error);
+      if (onEnd) onEnd();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  }, 50);
 }
 
 export function stopSpeaking(): void {

@@ -24,7 +24,7 @@ test.describe("Card Generation", () => {
 
     await page.goto(SESSION_URL());
     await expect(page.getByText(/Generating your flash cards/)).toBeVisible();
-    await expect(page.getByText(/Claude is crafting/)).toBeVisible();
+    await expect(page.getByText(/AI is crafting/)).toBeVisible();
   });
 
   test("shows correct count in generating message", async ({ page }) => {

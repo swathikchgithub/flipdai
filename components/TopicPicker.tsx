@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 
 interface TopicPickerProps {
   selectedModel: string;
+  mode: "study" | "interview";
 }
 
 const THEME: Record<string, { color: string }> = {
@@ -78,7 +79,7 @@ const COUNT_OPTIONS = [
   { value: 50, label: "50", sub: "Marathon" },
 ];
 
-export default function TopicPicker({ selectedModel }: TopicPickerProps) {
+export default function TopicPicker({ selectedModel, mode }: TopicPickerProps) {
   const router = useRouter();
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
@@ -93,7 +94,12 @@ export default function TopicPicker({ selectedModel }: TopicPickerProps) {
     if (!canGenerate) return;
     const sid = uuidv4();
     const sub = isCustom ? customText.trim() : selectedSub!;
-    router.push(`/study/${sid}?topic=${selectedTopic}&sub=${encodeURIComponent(sub)}&count=${cardCount}&model=${encodeURIComponent(selectedModel)}`);
+    
+    if (mode === "interview") {
+      router.push(`/interview/${sid}?topic=${selectedTopic}&sub=${encodeURIComponent(sub)}&model=${encodeURIComponent(selectedModel)}`);
+    } else {
+      router.push(`/study/${sid}?topic=${selectedTopic}&sub=${encodeURIComponent(sub)}&count=${cardCount}&model=${encodeURIComponent(selectedModel)}`);
+    }
   };
 
   const handleTopicClick = (id: string) => {
@@ -255,32 +261,36 @@ export default function TopicPicker({ selectedModel }: TopicPickerProps) {
             </div>
           )}
 
-          {/* Card count selector */}
-          <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.07em", color: "#484848", textTransform: "uppercase", marginBottom: 10 }}>
-            Number of Cards
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18 }}>
-            {COUNT_OPTIONS.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setCardCount(opt.value)}
-                aria-label={String(opt.value)}
-                style={{
-                  padding: "12px 8px", borderRadius: 10, textAlign: "center",
-                  background: cardCount === opt.value ? "rgba(91,156,246,0.12)" : "rgba(255,255,255,0.04)",
-                  border: cardCount === opt.value ? "0.5px solid rgba(91,156,246,0.4)" : "0.5px solid rgba(255,255,255,0.08)",
-                  cursor: "pointer", transition: "all 0.15s",
-                }}
-              >
-                <div style={{ fontSize: 18, fontWeight: 600, color: cardCount === opt.value ? "#5b9cf6" : "#9098a8" }}>
-                  {opt.label}
-                </div>
-                <div aria-hidden="true" style={{ fontSize: 10, color: cardCount === opt.value ? "#5b9cf6" : "#454a56", marginTop: 2 }}>
-                  {opt.sub}
-                </div>
-              </button>
-            ))}
-          </div>
+          {/* Card count selector — only for flashcards */}
+          {mode === "study" && (
+            <>
+              <div style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.07em", color: "#484848", textTransform: "uppercase", marginBottom: 10 }}>
+                Number of Cards
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18 }}>
+                {COUNT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setCardCount(opt.value)}
+                    aria-label={String(opt.value)}
+                    style={{
+                      padding: "12px 8px", borderRadius: 10, textAlign: "center",
+                      background: cardCount === opt.value ? "rgba(91,156,246,0.12)" : "rgba(255,255,255,0.04)",
+                      border: cardCount === opt.value ? "0.5px solid rgba(91,156,246,0.4)" : "0.5px solid rgba(255,255,255,0.08)",
+                      cursor: "pointer", transition: "all 0.15s",
+                    }}
+                  >
+                    <div style={{ fontSize: 18, fontWeight: 600, color: cardCount === opt.value ? "#5b9cf6" : "#9098a8" }}>
+                      {opt.label}
+                    </div>
+                    <div aria-hidden="true" style={{ fontSize: 10, color: cardCount === opt.value ? "#5b9cf6" : "#454a56", marginTop: 2 }}>
+                      {opt.sub}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           {/* Generate button */}
           <button
@@ -299,7 +309,9 @@ export default function TopicPicker({ selectedModel }: TopicPickerProps) {
             onMouseEnter={e => { if (canGenerate) e.currentTarget.style.background = "#4a8ce0"; }}
             onMouseLeave={e => { if (canGenerate) e.currentTarget.style.background = "#5b9cf6"; }}
           >
-{canGenerate ? `Generate ${cardCount} Flash Cards →` : "Generate Flash Cards →"}
+{canGenerate 
+  ? (mode === "interview" ? "Start Mock Interview →" : `Generate ${cardCount} Flash Cards →`)
+  : (mode === "interview" ? "Select a Subcategory →" : "Generate Flash Cards →")}
           </button>
         </div>
       )}
